@@ -25,17 +25,19 @@ if ($_GET["download_data"] == "1")
 			$data[] = '"'.pq($td)->html().'"';
 		}
 		
-		if(!in_array($data[7], $phones)){
+		if(!in_array($data[1], $phones)){
 			$txt .= implode(",", $data) . "\n";
 		}
-		$phones[] = $data[7];  
-		
+		$phones[] = $data[1];  
+		$query = $data[30];
 	}
 	
 	$txt = str_replace("&amp;", "&", $txt);
 	$txt = stripslashes($txt);
+	$header_row = "Name,Phone,Full Address,Street,City,State,Country,Zip,Website,Places,Photos,Reviews,Rating,Latitude,Longitude,Mon Open,Mon Close,Tue Open,Tue Close,Wed Open,Wed Close,Thu Open,Thu Close,Fri Open,Fri Close,Sat Open,Sat Close,Sun Open,Sun Close,Google ID,Query\n";
+	$txt = $header_row.$txt;
 	header("Content-type: application/octet-stream");
-	header("Content-Disposition: attachment; filename=\"download.csv\"");
+	header("Content-Disposition: attachment; filename=\"{$query}.csv\"");
 	echo $txt;
 	die();
 }
