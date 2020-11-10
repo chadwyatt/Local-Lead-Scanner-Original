@@ -81,14 +81,14 @@ class gpapiscraper {
 	public static function register_gpapiscraper(){
 		
 		$labels = array(
-			'name' => _x('GpApiScraper', 'post type general name'),
-			'singular_name' => _x('GpApiScraper', 'post type singular name'),
-			'add_new' => _x('Add New', 'GpApiScraper item'),
-			'add_new_item' => __('Add New GpApiScraper'),
-			'edit_item' => __('Edit GpApiScraper'),
-			'new_item' => __('New GpApiScraper'),
-			'view_item' => __('View GpApiScraper'),
-			'search_items' => __('Search GpApiScraper'),
+			'name' => _x('Lead Finder', 'post type general name'),
+			'singular_name' => _x('Lead Finder', 'post type singular name'),
+			'add_new' => _x('Add New', 'Lead Finder item'),
+			'add_new_item' => __('Add New Lead Finder'),
+			'edit_item' => __('Edit Lead Finder'),
+			'new_item' => __('New Lead Finder'),
+			'view_item' => __('View Lead Finder'),
+			'search_items' => __('Search Lead Finders'),
 			'not_found' =>  __('Nothing found'),
 			'not_found_in_trash' => __('Nothing found in Trash'),
 			'parent_item_colon' => ''
