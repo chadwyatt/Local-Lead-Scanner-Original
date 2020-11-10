@@ -54,18 +54,15 @@ function run_scraper($pagetoken = ''){
 	global $count;
 	$count++;
 	if($count > 30) return;
-	//echo "run_scraper($pagetoken)\n";
+
 	$data = do_query($_REQUEST['query'], $pagetoken);
-	//print_r($data);
-	//die();
+
 	get_details($data);
-	//echo "next page token: ".$data['next_page_token']."\n";
+
 	if($data['next_page_token'] != ''){
-		//echo "next page yes\n";
-		//run_scraper( $data['next_page_token'] ); 
 		run_scraper( $data['next_page_token'] );
 	} else {
-		//echo "next page NO\n";
+		//all done
 	}
 	
 }
@@ -88,9 +85,11 @@ function get_details($data){
 			$address[ $a['types'][0] ] = $a['long_name'];
 		}
 		
+		$phone = str_replace(array(" ", "-"), array("", ""), $business['international_phone_number']);
+
 		echo "<tr>";
 		echo "<td style=\"white-space:nowrap;\">$b[name]</td>";
-		echo "<td class=\"phone\">".str_replace(array(" ", "-"), array("", ""), $business['international_phone_number'])."</td>";
+		echo "<td class=\"phone\">".$phone."</td>";
 		echo "<td style=\"white-space:nowrap;\">$b[formatted_address]</td>";
 		echo "<td style=\"white-space:nowrap;\">$address[street_number] $address[route]</td>";
 		echo "<td>$address[locality]</td>";
@@ -114,6 +113,9 @@ function get_details($data){
 		echo "<td>$business[id]</td>";
 		echo "<td>$_REQUEST[query]</td>";
 		echo "</tr>\n";
+
+		//create a phone meta data record, will be used in VM Drop plugin
+		update_post_meta($_REQUEST['post_ID'], sprintf('_phone_%s', $phone), $phone);
 		
 	}
 }
@@ -136,22 +138,17 @@ function get_address($address_array){
 }
 
 function curl_operation($url, $timeout_sec = 5) {
-	//$headers = array("Content-type: multipart/form-data");
-
-	$ch = curl_init(); // Initialize the curl
+	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE); 
-	curl_setopt($ch, CURLOPT_URL, $url);  // set the opton for curl
+	curl_setopt($ch, CURLOPT_URL, $url);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);// set the option to transfer output from script to curl
-	//curl_setopt($ch, CURLOPT_POST, 1);
-	//curl_setopt($ch, CURLOPT_POSTFIELDS, $val); // add POST fields
-	//curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 	
 	if($timeout_sec > 0)
 	{
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout_sec);
 	}
 	
-	$response = curl_exec($ch); // Execute curl
+	$response = curl_exec($ch);
 	return $response;
 }
 
