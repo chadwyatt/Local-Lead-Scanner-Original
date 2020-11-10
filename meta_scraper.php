@@ -25,13 +25,13 @@ table#results tbody tr td {white-space:nowrap;}
         <thead>
             <tr>
                 <th>Name</th>
+                <th>Phone</th>
                 <th>Full Address</th>
                 <th>Street</th>
                 <th>City</th>
                 <th>State</th>
                 <th>Country</th>
                 <th>Zip</th>
-                <th>Phone</th>
                 <th>Website</th>
                 <th>Places</th>
                 <th>Photos</th>
