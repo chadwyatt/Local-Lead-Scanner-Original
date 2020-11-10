@@ -1,11 +1,11 @@
 <?php   
 /* 
-Plugin Name: GpApiScraper
-Plugin URI: http://smswordpress.com/gp-api-scraper
+Plugin Name: Profitable Plugins Leader Finder
+Plugin URI: https://profitableplugins.com
 Description: Query the google places api for business leads.
-Version: 1.0.1
-Author: Chad Wyatt
-Author URI: http://chadwyatt.com
+Version: 1.0.0
+Author: Profitable Plugins
+Author URI: https://profitableplugins.com
 */
 
 
