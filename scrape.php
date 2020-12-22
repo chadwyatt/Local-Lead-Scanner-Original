@@ -57,7 +57,21 @@ function run_scraper($pagetoken = ''){
 
 	$data = do_query($_REQUEST['query'], $pagetoken);
 
-	get_details($data);
+	
+	foreach($data['results'] as $b){
+		//look for existing reference for this scraper record
+		$posts = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'meta_key' => 'business_reference',
+			'meta_value' => $b['reference'],
+			'post_parent' => $_REQUEST['post_ID']
+		));
+		//get details if no existing record found for this scraper record
+		if(count($posts) === 0){
+			get_details($b);
+		}
+	}
 
 	if($data['next_page_token'] != ''){
 		run_scraper( $data['next_page_token'] );
@@ -67,8 +81,8 @@ function run_scraper($pagetoken = ''){
 	
 }
 
-function get_details($data){
-	foreach($data['results'] as $b){
+function get_details($b){
+	// foreach($data['results'] as $b){
 		// echo '<pre>';
 		// print_r( $data['results'] );
 		// echo '</pre>';
@@ -116,9 +130,24 @@ function get_details($data){
 
 		//create a phone meta data record, will be used in VM Drop plugin
 		update_post_meta($_REQUEST['post_ID'], sprintf('_phone_%s', $phone), $phone);
+
+		// error_log(print_r($business, true));
+
+		//save business record
+		$post = array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'post_parent' => $_REQUEST['post_ID'],
+			'post_title' => $b['name']
+		);
+		$ID = wp_insert_post($post);
+		update_post_meta($ID, 'business_reference', $b['reference']);
+		update_post_meta($ID, 'business_data', $business);
 		
-	}
+	// }
 }
+
+
 
 function do_query($query, $pagetoken = ''){
 	//echo "do_query pagetoken: $pagetoken";
@@ -127,7 +156,7 @@ function do_query($query, $pagetoken = ''){
 		$url = sprintf('https://maps.googleapis.com/maps/api/place/textsearch/json?query=%s&sensor=false&key=%s', urlencode($query), APIKEY);
 	else
 		$url = sprintf('https://maps.googleapis.com/maps/api/place/textsearch/json?sensor=false&key=%s&pagetoken=%s', APIKEY, $pagetoken);
-	//echo "$url\n";
+	// echo "$url\n";
 	$result = curl_operation($url);
 	$data = json_decode($result, 1);
 	return $data;
