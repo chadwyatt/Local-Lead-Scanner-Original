@@ -3,7 +3,7 @@
 Plugin Name: Profitable Plugins Leader Finder
 Plugin URI: https://profitableplugins.com
 Description: Query the google places api for business leads.
-Version: 1.0.4
+Version: 1.1.4
 Author: Profitable Plugins
 Author URI: https://profitableplugins.com
 */
@@ -15,7 +15,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'PROFITABLE_PLUGINS_LEAD_FINDER_VERSION', '1.0.4' );
+define( 'PROFITABLE_PLUGINS_LEAD_FINDER_VERSION', '1.1.4' );
 
 
 spl_autoload_register(function ($class) {
@@ -56,6 +56,9 @@ class gpapiscraper {
 		$updater = Updater::get_instance();
 		$updater->set_file(__FILE__);
 		$updater->initialize();
+
+		gpapiscraper::frontend();
+		gpapiscraper::api();
 	}
 	
 	public static function admin_init(){
@@ -106,7 +109,8 @@ class gpapiscraper {
 			'capability_type' => 'post',
 			'hierarchical' => false,
 			//'menu_position' => 25,
-			'supports' => array('title')
+			'supports' => array('title'),
+			'show_in_rest' => true
 			); 
 		
 		register_post_type( 'gpapiscraper' , $args );
@@ -132,19 +136,6 @@ class gpapiscraper {
 		return $post_id;
 	}
 	
-	// public static function curl_operation($url){
-	// 	//$headers = array("Content-type: multipart/form-data");
-	// 	$ch = curl_init(); // Initialize the curl
-	// 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE); 
-	// 	curl_setopt($ch, CURLOPT_URL, $url);  // set the opton for curl
-	// 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);// set the option to transfer output from script to curl
-	// 	//curl_setopt($ch, CURLOPT_POST, 1);
-	// 	//curl_setopt($ch, CURLOPT_POSTFIELDS, $val); // add POST fields
-	// 	//curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-	// 	$response = curl_exec($ch); // Execute curl
-	// 	return $response;
-	// }
-	
 	public static function user_fields( $user ) { 
 		//if ( current_user_can( 'administrator', $user->ID ) )
 			include(dirname(__FILE__)."/user_fields.php");
@@ -162,7 +153,77 @@ class gpapiscraper {
 		include(dirname(__FILE__)."/scrape.php");
 		die();
 	}
+
+	function frontend(){
+		add_shortcode('lead-finder', function($attr){
+			wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
+			wp_enqueue_script( 'vuejs' );
+			// wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', [], '1.0.3', true);
+			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js');
+			return '<div id="mount"></div>';
+		});
+	}
+
+	function api(){
+		// add_action('rest_api_init', function () {
+			// die("test123");
+			// register_rest_route( 'leadfinderapi', '/test', array(
+			// 	'methods'  => ['GET', 'POST'],
+			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
+			// ));
+
+			// register_rest_route( 'leadfinderapi', '/create', array(
+			// 	'methods'  => ['GET', 'POST'],
+			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
+			// ));
+		// });
+	}
+
+	function test($request) {
+		$person->fname  = "Chad";
+		$person->lname = "Wyatt";
+		
+		$obj->name = "person";
+		$obj->id = "123";
+		$obj->attr = array("color" => "Red", "width" => 25);
+		$obj->person = $person;
+		return new \WP_REST_Response( $obj, 200 );
+	}
+
+	function scrape2() {
+		return;
+	}
 }
+
+class LeadFinderApi {
+	function __construct() {
+		// echo "testing construct";
+		add_action('rest_api_init', function () {
+			// die("test123");
+			register_rest_route( 'lead_finder_api_3', '/test2', array(
+				'methods'  => ['GET', 'POST'],
+				'callback' => array( $this, 'test')
+			));
+
+			register_rest_route( 'lead_finder_api_3', '/create', array(
+				'methods'  => ['GET', 'POST'],
+				'callback' => array( $this, 'test')
+			));
+		});
+	}
+
+	function test($request) {
+		$person->fname  = "Chad";
+		$person->lname = "Wyatt";
+		
+		$obj->name = "person";
+		$obj->id = "123";
+		$obj->attr = array("color" => "Red", "width" => 25);
+		$obj->person = $person;
+		return new \WP_REST_Response( $obj, 200 );
+	}
+}
+$lfapi_obj = new LeadFinderApi();
 
 if(is_admin()){
 	add_action( 'admin_menu', 'ProfitablePlugins\LeadFinder\gpapiscraper::admin_menu' );	
@@ -180,4 +241,5 @@ if(is_admin()){
 
 add_action('init', 'ProfitablePlugins\LeadFinder\gpapiscraper::init');
 // add_action( 'plugins_loaded', 'ProfitablePlugins\\VMD\\init' );
+add_action('rest_api_init', 'ProfitablePlugins\LeadFinder\gpapiscraper::api');
 
