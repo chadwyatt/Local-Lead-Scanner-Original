@@ -105,9 +105,9 @@ jQuery(function(){
 		
 	});
 	
-	jQuery("tr td:nth-child(9), tr td:nth-child(10)").live('click', function(){
+	jQuery("tr td:nth-child(9), tr td:nth-child(10)").on('click', function(){
 		var url = jQuery(this).html();
-		var windowName = "popUp";//jQuery(this).attr("name");
+		var windowName = "popUp";	//jQuery(this).attr("name");
 		window.open(url, windowName);
 	});
 	

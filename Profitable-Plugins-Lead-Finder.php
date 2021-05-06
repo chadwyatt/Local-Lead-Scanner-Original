@@ -159,7 +159,7 @@ class gpapiscraper {
 			wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
 			wp_enqueue_script( 'vuejs' );
 			// wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', [], '1.0.3', true);
-			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js');
+			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
 			return '<div id="mount"></div>';
 		});
 	}
@@ -197,30 +197,77 @@ class gpapiscraper {
 
 class LeadFinderApi {
 	function __construct() {
-		// echo "testing construct";
-		add_action('rest_api_init', function () {
-			// die("test123");
-			register_rest_route( 'lead_finder_api_3', '/test2', array(
-				'methods'  => ['GET', 'POST'],
-				'callback' => array( $this, 'test')
-			));
-
-			register_rest_route( 'lead_finder_api_3', '/create', array(
-				'methods'  => ['GET', 'POST'],
-				'callback' => array( $this, 'test')
-			));
-		});
+		add_action('init', function () {
+			add_action('wp_ajax_lead_finder_list', array($this, 'get_finders'));
+			add_action('wp_ajax_lead_finder_create', array($this, 'create'));
+			add_action('wp_ajax_lead_finder_records', array($this, 'records'));
+			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
+			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
+		});	
 	}
 
-	function test($request) {
-		$person->fname  = "Chad";
-		$person->lname = "Wyatt";
-		
-		$obj->name = "person";
-		$obj->id = "123";
-		$obj->attr = array("color" => "Red", "width" => 25);
-		$obj->person = $person;
-		return new \WP_REST_Response( $obj, 200 );
+	function get_finders() {
+		$posts = get_posts(array(
+			'post_type' => 'gpapiscraper',
+			'post_status' => 'publish',
+			'posts_per_page' => -1,
+			'author' => get_current_user_id(),
+			'orderby' => 'title',
+			'order' => 'ASC'
+		));
+		header('Content-Type: application/json');
+		echo(json_encode($posts));
+		die();
+	}
+
+	function create() {
+		$data = json_decode(file_get_contents('php://input'), true);
+		$ID = wp_insert_post(array(
+			'post_title' => $data['title'],
+			'post_type' => 'gpapiscraper',
+			'post_status' => 'publish'
+		));
+		echo "id:".$ID;
+		die();
+	}
+
+	function records() {
+		$ID = $_REQUEST['ID'];
+		$posts = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'post_parent' => $ID,
+			'posts_per_page' => -1
+		));
+		foreach($posts as $post){
+			$post->business_data = get_post_meta($post->ID, 'business_data', true);
+		}
+
+		header('Content-Type: application/json');
+		echo(json_encode($posts));
+		die();
+	}
+
+	function get_locations() {
+		$user_id = get_current_user_id();
+		$locations = get_user_meta($user_id, 'lead_finder_locations', true);
+		header('Content-Type: application/json');
+		echo(json_encode($locations));
+		die();
+	}
+
+	function save_locations() {
+		$user_id = get_current_user_id();
+		$data = json_decode(file_get_contents('php://input'), true);
+
+		$locations = $data['locations'];
+		if($data['new_location']['title'] !== '' || $data['new_location']['locations'] !== '')
+			array_push($locations, $data['new_location']);
+		update_user_meta($user_id, 'lead_finder_locations', $locations);
+
+		header('Content-Type: application/json');
+		echo(json_encode($locations));
+		die();
 	}
 }
 $lfapi_obj = new LeadFinderApi();
@@ -242,4 +289,5 @@ if(is_admin()){
 add_action('init', 'ProfitablePlugins\LeadFinder\gpapiscraper::init');
 // add_action( 'plugins_loaded', 'ProfitablePlugins\\VMD\\init' );
 add_action('rest_api_init', 'ProfitablePlugins\LeadFinder\gpapiscraper::api');
+
 
