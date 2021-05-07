@@ -203,7 +203,9 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_records', array($this, 'records'));
 			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
-		});	
+			add_action('wp_ajax_lead_finder_get_api_key', array($this, 'get_api_key'));
+			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
+		});
 	}
 
 	function get_finders() {
@@ -268,6 +270,22 @@ class LeadFinderApi {
 		header('Content-Type: application/json');
 		echo(json_encode($locations));
 		die();
+	}
+
+	function get_api_key() {
+		$user_id = get_current_user_id();
+		$key = esc_attr( get_user_meta( $user_id, 'gpapiscraper_google_key', true ) );
+		header('Content-Type: application/json');
+		echo(json_encode(array('google_places_api_key' => $key)));
+		die();
+	}
+
+	function save_api_key() {
+		$user_id = get_current_user_id();
+		$data = json_decode(file_get_contents('php://input'), true);
+
+		$api_key = $data['google_places_api_key'];
+		update_user_meta($user_id, 'gpapiscraper_google_key', $api_key);
 	}
 }
 $lfapi_obj = new LeadFinderApi();

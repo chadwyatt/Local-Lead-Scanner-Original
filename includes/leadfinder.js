@@ -7,7 +7,6 @@
                 Lead Finder
             </h1>
             <button v-bind:style="style.button" v-on:click="showNewFinderForm">New Lead Finder</button>
-            <button v-bind:style="style.button" v-on:click="showNewFinderForm">Google API Key</button>
             <a v-on:click="showSettings" style="float:right;cursor:pointer;">Settings</a>
             <div v-bind:style="style.leftColumn">
                 <input v-model="search" v-bind:style="style.input" placeholder="Search" />
@@ -29,6 +28,8 @@
                     <div>
                         <label>Title</label>
                         <input v-model="finder.post_title" v-bind:style="[style.input, style.inputLarge]" />
+                        <button v-bind:style="style.button" v-on:click="saveLeadFinder">Save Title</button>
+                        <div style="clear:both;"></div>
                     </div>
                     <div>
                         <div style="width:48%; float:left;">
@@ -37,16 +38,17 @@
                         </div>
                         <div style="width:48%; float:right;">
                             <label>Locations</label>
-                            <select label="Locations" v-model="finder.locations_id" v-bind:style="[style.input, style.inputLarge]">
-                                <option v-for="location in locations" v-bind:value="location.ID">
-                                    {{ location.text }}
+                            <select label="Locations" v-model="finder.locations" v-bind:style="[style.input, style.inputLarge]">
+                                <option value="">Select location (optional)</option>
+                                <option v-for="location in locations" v-bind:value="location.locations">
+                                    {{ location.title }}
                                 </option>
                             </select>
                         </div>
                         <div style="clear:both;"></div>
                     </div>
 
-                    <button v-bind:style="style.button" v-on:click="saveLeadFinder">Save</button>
+                    <button v-bind:style="style.button" v-on:click="saveLeadFinder">Run Lead Finder</button>
                     <div style="clear:both;"></div>
                 </div>
 
@@ -74,47 +76,62 @@
                     <div style="margin-bottom:30px;">
                         <h3>API Key</h3>
                         <label>Google Places API Key</label>
-                        <input v-model="google_places_api_key" v-bind:style="[style.input, style.inputLarge]" />
+                        <input type="password" v-model="google_places_api_key" v-bind:style="[style.input, style.inputLarge]" />
+                        <button v-bind:style="style.button" v-on:click="saveApiKey">Save API Key</button>
                     </div>
 
                     <div style="margin-bottom:30px;">
                         <h3>Locations</h3>
 
-
-                        <div v-for="location in locations">
+                        <div v-for="location in locations" style="margin-bottom:30px">
                             <label>Title</label>
                             <input v-model="location.title" v-bind:style="[style.input, style.inputLarge]" />
 
                             <label>Locations</label>
-                            <textarea v-model="location.locations" v-bind:style="[style.input, style.inputLarge]"></textarea>
-                            
+                            <textarea v-model="location.locations" v-bind:style="[style.input, style.inputLarge, style.textarea]"></textarea>
+                            <div style="text-align:right;">
+                                <a v-if="confirm_delete_location !== location.index" v-on:click="confirm_delete_location = location.index" style="cursor:pointer;">Location</a>
+                                <span v-if="confirm_delete_location === location.index">
+                                    Are you sure you want to delete this location? 
+                                    <a v-on:click="deleteLocation(location.index)" style="cursor:pointer;color:red;margin-left:10px;margin-right:10px;font-weight:bold;">Yes, Delete!</a>
+                                    <a v-on:click="confirm_delete_location = null" style="cursor:pointer;">Cancel</a>
+                                </span>
+                            </div>
                         </div>
 
-                        <label>Title</label>
-                        <input v-model="new_location.title" v-bind:style="[style.input, style.inputLarge]" />
+                        <div style="margin-bottom:40px">
+                            <h3>Add New Location</h3>
+                            <label>Title</label>
+                            <input v-model="new_location.title" v-bind:style="[style.input, style.inputLarge]" />
 
-                        <label>Locations</label>
-                        <textarea v-model="new_location.locations" v-bind:style="[style.input, style.inputLarge]"></textarea>
-                        
+                            <label>Locations</label>
+                            <textarea v-model="new_location.locations" v-bind:style="[style.input, style.inputSmall, style.textarea]"></textarea>
+                        </div>
 
-                        <button v-on:click="saveLocations">Save Locations</button>
+                        <button v-on:click="saveLocations" v-bind:style="style.button">Save Locations</button>
                     </div>
-
                 </div>
-                
-
+            </div>
+            <div id="myModal" v-bind:style="style.modal" v-on:click="style.modal.display = 'none'">
+                <div v-bind:style="style.modalContent">
+                    <span v-bind:style="style.modalClose" v-on:click="style.modal.display = 'none'">&times;</span>
+                    <p v-html="modal_message"></p>
+                </div>
             </div>
         </div>
         `,
         data: {
             loadingFinders: false,
             loadingRecords: false,
+            google_places_api_key: '',
+            confirm_delete_location: null,
             finders: [],
             businesses: [],
             finder: {
                 post_title: '',
                 locations_id: 0 
             },
+            settingsAreValid: false,
             google_places_api_key: '',
             query: '',
             locations: [],
@@ -125,6 +142,7 @@
             },
             view: 'finders',
             search: '',
+            modal_message: '',
             style: {
                 leftColumn: {
                     width: '25%',
@@ -150,6 +168,12 @@
                     fontSize: '1.5em',
                     padding: '10px 15px'
                 },
+                inputLarge: {
+                    padding: '10px 15px'
+                },
+                textarea: {
+                    height: '100px'
+                },
                 button: {
                     padding: '5px 10px',
                     borderRadius: '4px',
@@ -158,29 +182,54 @@
                     marginLeft: '10px',
                     backgroundColor: '#efefef',
                     float: 'right'
+                },
+                modal: {
+                    display: 'none',
+                    position: 'fixed',
+                    zIndex: 1,
+                    paddingTop: '100px',
+                    left: 0,
+                    top: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'auto',
+                    backgroundColor: 'rgb(0,0,0)',
+                    backgroundColor: 'rgba(0,0,0,0.4)'
+                },
+                modalContent: {
+                    backgroundColor: '#fefefe',
+                    margin: 'auto',
+                    padding: '20px',
+                    border: '1px solid #888',
+                    width: '80%',
+                    maxWidth: '500px'
+                },
+                modalClose: {
+                    color: '#aaaaaa',
+                    float: 'right',
+                    fontSize: '28px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
                 }
             }
         },
         mounted: function(){
             this.loadFinders()
             this.loadLocations()
+            this.loadGooglePlacesApiKey()
         },
         computed: {
-            finderTitle: function(){
+            finderTitle: function() {
                 return this.finder.post_title !== '' ? this.finder.post_title : 'New Lead Finder'
-            }
+            },
         },
         methods: {
             loadFinders: function() {
                 this.loadingFinders = true
-                // var url = '/wp-json/wp/v2/gpapiscraper?filter[orderby]=date&_fields[]=title&_fields[]=id';
-                // var url = '/wp-json/wp/v2/gpapiscraper?orderby=title&per_page=100'
-                // var url = '/wp-json/lead_finder/finders'
                 var url = '/wp-admin/admin-ajax.php?action=lead_finder_list'
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
-                    console.log("finders", data)
                     this.finders = data
                     this.loadingFinders = false
                 })
@@ -190,11 +239,22 @@
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
-                    console.log("locations", data)
+                    for(var x = 0; x < data.length; x++){
+                        data[x]['index'] = x
+                    }
                     this.locations = data
                 })
             },
+            loadGooglePlacesApiKey: function() {
+                var url = '/wp-admin/admin-ajax.php?action=lead_finder_get_api_key'
+                fetch(url).then((response)=>{
+                    return response.json()
+                }).then((data)=>{
+                    this.google_places_api_key = data.google_places_api_key
+                })
+            },
             loadFinder: function(item) {
+                console.log("locations", this.locations)
                 this.loadingRecords = true
                 this.view = 'finder'
                 this.finder = item
@@ -204,7 +264,6 @@
                 fetch(url)
                     .then(response => response.json())
                     .then(data => {
-                        console.log("records", data)
                         this.businesses = data
                         this.loadingRecords = false
                     })
@@ -237,7 +296,7 @@
                 }).then((response)=>{
                     return response.json()
                 }).then((data)=>{
-                    console.log("saved lead finder", data)
+                    
                 })
             },
             decodeHTML: function (html) {
@@ -246,6 +305,7 @@
                 return txt.value;
             },
             saveLocations: function() {
+                this.flashModal("Saving locations...")
                 var url = '/wp-admin/admin-ajax.php?action=lead_finder_save_locations';
                 fetch(url, {
                     method: 'post',
@@ -256,12 +316,51 @@
                 }).then((response)=>{
                     return response.json()
                 }).then((data)=>{
-                    console.log("saved lead finder", data)
+                    this.locations = data
+                    this.flashModal('<span style="color:green;font-weight:bold;">Done!<span>', 2)
+                })
+                return
+            },
+            saveApiKey: function() {
+                var url = '/wp-admin/admin-ajax.php?action=lead_finder_save_api_key';
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({
+                        google_places_api_key: this.google_places_api_key
+                    })
+                }).then((response)=>{
+                    return response.json()
+                }).then((data)=>{
                     this.locations = data
                 })
                 return
+            },
+            deleteLocation: function(index){
+                this.locations = this.locations.filter(location => location.index !== index)
+                return
+            },
+            flashModal: function(message, time) {
+                this.modal_message = message
+                this.style.modal.display = 'block'
+                if(time !== null && time > 0){
+                    time *= 1000
+                    let g = this
+                    setTimeout(function(){
+                        g.style.modal.display = 'none'
+                    }, time)
+                }
+
             }
             
+        },
+        watch: {
+            'query': function(newV, oldV) {
+                console.log("check query", newV.length, newV.length > 0)
+                this.settingsAreValid = newV.length > 0
+            },
+            'settingsAreValid': function(newV, oldV) {
+                console.log('settingsAreValid', newV, oldV)
+            }
         }
     });
 })();
