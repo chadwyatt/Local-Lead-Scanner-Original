@@ -48,7 +48,7 @@
                         <div style="clear:both;"></div>
                     </div>
 
-                    <button v-bind:style="style.button" v-on:click="saveLeadFinder">Run Lead Finder</button>
+                    <button v-bind:style="style.button" v-on:click="runLeadFinder">Run Lead Finder</button>
                     <div style="clear:both;"></div>
                 </div>
 
@@ -62,6 +62,10 @@
                         <tr v-if="loadingRecords"><td>Loading...</td></tr>
                         <tr v-for="business in businesses">
                             <td>
+                                <div style="float:right;display:inline-block">
+                                    <div class="Stars" :style="stars(business.business_data.rating)" :label="business.business_data.rating"></div>
+                                    <div><a v-on:click="showDetails(business)" style="float:right;">Details</a></div>
+                                </div>
                                 <div><a :href="business.business_data.website" target="_blank">{{business.post_title}}</a></div>
                                 <div v-html="business.business_data.adr_address"></div>
                                 <div>{{business.business_data.formatted_phone_number}}</div>
@@ -113,6 +117,12 @@
                 </div>
             </div>
             <div id="myModal" v-bind:style="style.modal" v-on:click="style.modal.display = 'none'">
+                <div v-bind:style="style.modalContent">
+                    <span v-bind:style="style.modalClose" v-on:click="style.modal.display = 'none'">&times;</span>
+                    <p v-html="modal_message"></p>
+                </div>
+            </div>
+            <div id="details" v-bind:style="style.modalDetails" v-on:click="style.modalDetails.display = 'none'">
                 <div v-bind:style="style.modalContent">
                     <span v-bind:style="style.modalClose" v-on:click="style.modal.display = 'none'">&times;</span>
                     <p v-html="modal_message"></p>
@@ -196,6 +206,19 @@
                     backgroundColor: 'rgb(0,0,0)',
                     backgroundColor: 'rgba(0,0,0,0.4)'
                 },
+                modalDetails: {
+                    display: 'none',
+                    position: 'fixed',
+                    zIndex: 1,
+                    paddingTop: '100px',
+                    left: 0,
+                    top: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'auto',
+                    backgroundColor: 'rgb(0,0,0)',
+                    backgroundColor: 'rgba(0,0,0,0.4)'
+                },
                 modalContent: {
                     backgroundColor: '#fefefe',
                     margin: 'auto',
@@ -226,7 +249,7 @@
         methods: {
             loadFinders: function() {
                 this.loadingFinders = true
-                var url = '/wp-admin/admin-ajax.php?action=lead_finder_list'
+                var url = ajaxurl+'?action=lead_finder_list'
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
@@ -235,7 +258,7 @@
                 })
             },
             loadLocations: function() {
-                var url = '/wp-admin/admin-ajax.php?action=lead_finder_get_locations'
+                var url = ajaxurl+'?action=lead_finder_get_locations'
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
@@ -246,7 +269,7 @@
                 })
             },
             loadGooglePlacesApiKey: function() {
-                var url = '/wp-admin/admin-ajax.php?action=lead_finder_get_api_key'
+                var url = ajaxurl+'?action=lead_finder_get_api_key'
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
@@ -260,7 +283,7 @@
                 this.finder = item
                 this.businesses = []
                 // var url = '/wp-json/lead_finder/records/'+item.ID;
-                var url = '/wp-admin/admin-ajax.php?action=lead_finder_records&ID='+item.ID
+                var url = ajaxurl+'?action=lead_finder_records&ID='+item.ID
                 fetch(url)
                     .then(response => response.json())
                     .then(data => {
@@ -287,7 +310,7 @@
             },
             saveLeadFinder: function() {
                 // var url = '/wp-json/lead_finder/create';
-                var url = '/wp-admin/admin-ajax.php?action=lead_finder_create';
+                var url = ajaxurl+'?action=lead_finder_create';
                 fetch(url, {
                     method: 'post',
                     body: JSON.stringify({
@@ -306,7 +329,7 @@
             },
             saveLocations: function() {
                 this.flashModal("Saving locations...")
-                var url = '/wp-admin/admin-ajax.php?action=lead_finder_save_locations';
+                var url = ajaxurl+'?action=lead_finder_save_locations';
                 fetch(url, {
                     method: 'post',
                     body: JSON.stringify({
@@ -322,7 +345,7 @@
                 return
             },
             saveApiKey: function() {
-                var url = '/wp-admin/admin-ajax.php?action=lead_finder_save_api_key';
+                var url = ajaxurl+'?action=lead_finder_save_api_key';
                 fetch(url, {
                     method: 'post',
                     body: JSON.stringify({
@@ -349,9 +372,29 @@
                         g.style.modal.display = 'none'
                     }, time)
                 }
-
+            },
+            showDetails: function(business) {
+                console.log("business", business)
+                this.modal_message = business.post_title
+                this.style.modalDetails.display = 'block'
+            },
+            runLeadFinder: function() {
+                var url = ajaxurl+'?action=lead_finder_save_api_key';
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({
+                        google_places_api_key: this.google_places_api_key
+                    })
+                }).then((response)=>{
+                    return response.json()
+                }).then((data)=>{
+                    this.locations = data
+                })
+                return
+            },
+            stars: function(rating) {
+                return "--rating: " + rating + ";"
             }
-            
         },
         watch: {
             'query': function(newV, oldV) {

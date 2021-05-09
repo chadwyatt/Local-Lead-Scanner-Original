@@ -160,7 +160,14 @@ class gpapiscraper {
 			wp_enqueue_script( 'vuejs' );
 			// wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', [], '1.0.3', true);
 			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
-			return '<div id="mount"></div>';
+			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
+			// wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css');
+			return '
+				<script>
+					var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
+				</script>
+				<div id="mount"></div>
+			';
 		});
 	}
 
