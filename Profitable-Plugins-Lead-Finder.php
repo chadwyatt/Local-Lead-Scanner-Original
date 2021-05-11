@@ -3,7 +3,7 @@
 Plugin Name: Profitable Plugins Leader Finder
 Plugin URI: https://profitableplugins.com
 Description: Query the google places api for business leads.
-Version: 1.0.4
+Version: 1.1.4
 Author: Profitable Plugins
 Author URI: https://profitableplugins.com
 */
@@ -15,7 +15,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'PROFITABLE_PLUGINS_LEAD_FINDER_VERSION', '1.0.4' );
+define( 'PROFITABLE_PLUGINS_LEAD_FINDER_VERSION', '1.1.4' );
 
 
 spl_autoload_register(function ($class) {
@@ -56,6 +56,9 @@ class gpapiscraper {
 		$updater = Updater::get_instance();
 		$updater->set_file(__FILE__);
 		$updater->initialize();
+
+		gpapiscraper::frontend();
+		gpapiscraper::api();
 	}
 	
 	public static function admin_init(){
@@ -106,7 +109,8 @@ class gpapiscraper {
 			'capability_type' => 'post',
 			'hierarchical' => false,
 			//'menu_position' => 25,
-			'supports' => array('title')
+			'supports' => array('title'),
+			'show_in_rest' => true
 			); 
 		
 		register_post_type( 'gpapiscraper' , $args );
@@ -132,19 +136,6 @@ class gpapiscraper {
 		return $post_id;
 	}
 	
-	// public static function curl_operation($url){
-	// 	//$headers = array("Content-type: multipart/form-data");
-	// 	$ch = curl_init(); // Initialize the curl
-	// 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE); 
-	// 	curl_setopt($ch, CURLOPT_URL, $url);  // set the opton for curl
-	// 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);// set the option to transfer output from script to curl
-	// 	//curl_setopt($ch, CURLOPT_POST, 1);
-	// 	//curl_setopt($ch, CURLOPT_POSTFIELDS, $val); // add POST fields
-	// 	//curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-	// 	$response = curl_exec($ch); // Execute curl
-	// 	return $response;
-	// }
-	
 	public static function user_fields( $user ) { 
 		//if ( current_user_can( 'administrator', $user->ID ) )
 			include(dirname(__FILE__)."/user_fields.php");
@@ -162,7 +153,211 @@ class gpapiscraper {
 		include(dirname(__FILE__)."/scrape.php");
 		die();
 	}
+
+	function frontend(){
+		add_shortcode('lead-finder', function($attr){
+			wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
+			wp_enqueue_script( 'vuejs' );
+			// wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', [], '1.0.3', true);
+			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
+			wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
+			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
+			// wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css');
+			return '
+				<script>
+					var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
+				</script>
+				<div id="mount"></div>
+			';
+		});
+	}
+
+	function api(){
+		// add_action('rest_api_init', function () {
+			// die("test123");
+			// register_rest_route( 'leadfinderapi', '/test', array(
+			// 	'methods'  => ['GET', 'POST'],
+			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
+			// ));
+
+			// register_rest_route( 'leadfinderapi', '/create', array(
+			// 	'methods'  => ['GET', 'POST'],
+			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
+			// ));
+		// });
+	}
+
+	function test($request) {
+		$person->fname  = "Chad";
+		$person->lname = "Wyatt";
+		
+		$obj->name = "person";
+		$obj->id = "123";
+		$obj->attr = array("color" => "Red", "width" => 25);
+		$obj->person = $person;
+		return new \WP_REST_Response( $obj, 200 );
+	}
+
+	function scrape2() {
+		return;
+	}
 }
+
+class LeadFinderApi {
+	function __construct() {
+		add_action('init', function () {
+			add_action('wp_ajax_lead_finder_list', array($this, 'get_finders'));
+			add_action('wp_ajax_lead_finder_create', array($this, 'create'));
+			add_action('wp_ajax_lead_finder_records', array($this, 'records'));
+			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
+			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
+			add_action('wp_ajax_lead_finder_get_api_key', array($this, 'get_api_key'));
+			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
+			add_action('wp_ajax_lead_finder_download', array($this, 'download'));
+		});
+	}
+
+	function get_finders() {
+		$posts = get_posts(array(
+			'post_type' => 'gpapiscraper',
+			'post_status' => 'publish',
+			'posts_per_page' => -1,
+			'author' => get_current_user_id(),
+			'orderby' => 'title',
+			'order' => 'ASC'
+		));
+		header('Content-Type: application/json');
+		echo(json_encode($posts));
+		die();
+	}
+
+	function create() {
+		$data = json_decode(file_get_contents('php://input'), true);
+		$ID = wp_insert_post(array(
+			'post_title' => $data['title'],
+			'post_type' => 'gpapiscraper',
+			'post_status' => 'publish'
+		));
+		echo "id:".$ID;
+		die();
+	}
+
+	function records() {
+		$ID = $_REQUEST['ID'];
+		$posts = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'post_parent' => $ID,
+			'posts_per_page' => -1
+		));
+		foreach($posts as $post){
+			$post->business_data = get_post_meta($post->ID, 'business_data', true);
+		}
+
+		header('Content-Type: application/json');
+		echo(json_encode($posts));
+		die();
+	}
+
+	function get_locations() {
+		$user_id = get_current_user_id();
+		$locations = get_user_meta($user_id, 'lead_finder_locations', true);
+		header('Content-Type: application/json');
+		echo(json_encode($locations));
+		die();
+	}
+
+	function save_locations() {
+		$user_id = get_current_user_id();
+		$data = json_decode(file_get_contents('php://input'), true);
+
+		$locations = $data['locations'];
+		if($data['new_location']['title'] !== '' || $data['new_location']['locations'] !== '')
+			array_push($locations, $data['new_location']);
+		update_user_meta($user_id, 'lead_finder_locations', $locations);
+
+		header('Content-Type: application/json');
+		echo(json_encode($locations));
+		die();
+	}
+
+	function get_api_key() {
+		$user_id = get_current_user_id();
+		$key = esc_attr( get_user_meta( $user_id, 'gpapiscraper_google_key', true ) );
+		header('Content-Type: application/json');
+		echo(json_encode(array('google_places_api_key' => $key)));
+		die();
+	}
+
+	function save_api_key() {
+		$user_id = get_current_user_id();
+		$data = json_decode(file_get_contents('php://input'), true);
+
+		$api_key = $data['google_places_api_key'];
+		update_user_meta($user_id, 'gpapiscraper_google_key', $api_key);
+	}
+
+	function download() {
+		// $txt = str_replace("&amp;", "&", $txt);
+		// $txt = stripslashes($txt);
+
+		$lead_finder = get_post($_REQUEST['lead_finder_ID']);
+
+		//get child records of the lead finder record
+		$posts = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'post_parent' => $_REQUEST['lead_finder_ID'],
+			'posts_per_page' => -1
+		));
+
+		// print_r($posts);
+		$txt = '';
+		//loop through easy business record and pull the meta data
+		foreach($posts as $post){
+			$m = get_post_meta($post->ID, 'business_data', true);
+			
+			foreach($m['address_components'] as $a){
+				$address[ $a['types'][0] ] = $a['long_name'];
+			}
+
+			// print_r($address);
+			$fields = [];
+
+			$fields[] = $m['name'];
+			$fields[] = $m['formatted_phone_number'];
+			$fields[] = $m['formatted_address'];
+			$fields[] = $address['street_number'].' '.$address['route'];
+			$fields[] = $address['locality'];
+			$fields[] = $address['administrative_area_level_1'];
+			$fields[] = $address['country'];
+			$fields[] = $address['postal_code'];
+			$fields[] = $m['website'];
+			$fields[] = $m['url'];
+			$fields[] = count($m['photos']);
+			$fields[] = count($m['reviews']);
+			$fields[] = $m['rating'];
+			$fields[] = $m['geometry']['location']['lat'];
+			$fields[] = $m['geometry']['location']['lng'];
+			$p = $m['opening_hours']['periods'];
+			for($i=0; $i < 7; $i++){
+				$fields[] = $p[$i]['open']['time'];
+				$fields[] = $p[$i]['close']['time'];
+			}
+			$fields[] = $m['place_id'];
+
+			$txt .= '"'.implode('","', $fields).'"'."\n";
+		}
+
+		$header_row = "Name,Phone,Full Address,Street,City,State,Country,Zip,Website,Places,Photos,Reviews,Rating,Latitude,Longitude,Mon Open,Mon Close,Tue Open,Tue Close,Wed Open,Wed Close,Thu Open,Thu Close,Fri Open,Fri Close,Sat Open,Sat Close,Sun Open,Sun Close,Google ID\n";
+		$txt = $header_row.$txt;
+		header("Content-type: application/octet-stream");
+		header("Content-Disposition: attachment; filename=\"{$lead_finder->post_title}.csv\"");
+		echo $txt;
+		die();
+	}
+}
+$lfapi_obj = new LeadFinderApi();
 
 if(is_admin()){
 	add_action( 'admin_menu', 'ProfitablePlugins\LeadFinder\gpapiscraper::admin_menu' );	
@@ -180,4 +375,6 @@ if(is_admin()){
 
 add_action('init', 'ProfitablePlugins\LeadFinder\gpapiscraper::init');
 // add_action( 'plugins_loaded', 'ProfitablePlugins\\VMD\\init' );
+add_action('rest_api_init', 'ProfitablePlugins\LeadFinder\gpapiscraper::api');
+
 

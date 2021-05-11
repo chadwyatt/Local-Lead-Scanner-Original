@@ -51,6 +51,7 @@ run_scraper();
 $count = 0;
 
 function run_scraper($pagetoken = ''){
+	
 	global $count;
 	$count++;
 	if($count > 30) return;
@@ -159,6 +160,10 @@ function do_query($query, $pagetoken = ''){
 	// echo "$url\n";
 	$result = curl_operation($url);
 	$data = json_decode($result, 1);
+	if(strlen($data['error_message']) > 0) {
+		echo $data['error_message'];
+		die();
+	}
 	return $data;
 }
 //print_r($data);
