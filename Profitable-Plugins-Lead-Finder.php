@@ -58,7 +58,6 @@ class gpapiscraper {
 		$updater->initialize();
 
 		gpapiscraper::frontend();
-		gpapiscraper::api();
 	}
 	
 	public static function admin_init(){
@@ -170,21 +169,6 @@ class gpapiscraper {
 				<div id="mount"></div>
 			';
 		});
-	}
-
-	function api(){
-		// add_action('rest_api_init', function () {
-			// die("test123");
-			// register_rest_route( 'leadfinderapi', '/test', array(
-			// 	'methods'  => ['GET', 'POST'],
-			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
-			// ));
-
-			// register_rest_route( 'leadfinderapi', '/create', array(
-			// 	'methods'  => ['GET', 'POST'],
-			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
-			// ));
-		// });
 	}
 
 	function test($request) {
@@ -374,7 +358,3 @@ if(is_admin()){
 }
 
 add_action('init', 'ProfitablePlugins\LeadFinder\gpapiscraper::init');
-// add_action( 'plugins_loaded', 'ProfitablePlugins\\VMD\\init' );
-add_action('rest_api_init', 'ProfitablePlugins\LeadFinder\gpapiscraper::api');
-
-
