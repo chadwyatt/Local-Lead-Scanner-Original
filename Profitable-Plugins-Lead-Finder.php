@@ -160,6 +160,7 @@ class gpapiscraper {
 			wp_enqueue_script( 'vuejs' );
 			// wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', [], '1.0.3', true);
 			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
+			wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
 			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
 			// wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css');
 			return '
@@ -212,6 +213,7 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
 			add_action('wp_ajax_lead_finder_get_api_key', array($this, 'get_api_key'));
 			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
+			add_action('wp_ajax_lead_finder_download', array($this, 'download'));
 		});
 	}
 
@@ -293,6 +295,66 @@ class LeadFinderApi {
 
 		$api_key = $data['google_places_api_key'];
 		update_user_meta($user_id, 'gpapiscraper_google_key', $api_key);
+	}
+
+	function download() {
+		// $txt = str_replace("&amp;", "&", $txt);
+		// $txt = stripslashes($txt);
+
+		$lead_finder = get_post($_REQUEST['lead_finder_ID']);
+
+		//get child records of the lead finder record
+		$posts = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'post_parent' => $_REQUEST['lead_finder_ID'],
+			'posts_per_page' => -1
+		));
+
+		// print_r($posts);
+		$txt = '';
+		//loop through easy business record and pull the meta data
+		foreach($posts as $post){
+			$m = get_post_meta($post->ID, 'business_data', true);
+			
+			foreach($m['address_components'] as $a){
+				$address[ $a['types'][0] ] = $a['long_name'];
+			}
+
+			// print_r($address);
+			$fields = [];
+
+			$fields[] = $m['name'];
+			$fields[] = $m['formatted_phone_number'];
+			$fields[] = $m['formatted_address'];
+			$fields[] = $address['street_number'].' '.$address['route'];
+			$fields[] = $address['locality'];
+			$fields[] = $address['administrative_area_level_1'];
+			$fields[] = $address['country'];
+			$fields[] = $address['postal_code'];
+			$fields[] = $m['website'];
+			$fields[] = $m['url'];
+			$fields[] = count($m['photos']);
+			$fields[] = count($m['reviews']);
+			$fields[] = $m['rating'];
+			$fields[] = $m['geometry']['location']['lat'];
+			$fields[] = $m['geometry']['location']['lng'];
+			$p = $m['opening_hours']['periods'];
+			for($i=0; $i < 7; $i++){
+				$fields[] = $p[$i]['open']['time'];
+				$fields[] = $p[$i]['close']['time'];
+			}
+			$fields[] = $m['place_id'];
+
+			$txt .= '"'.implode('","', $fields).'"'."\n";
+		}
+
+		$header_row = "Name,Phone,Full Address,Street,City,State,Country,Zip,Website,Places,Photos,Reviews,Rating,Latitude,Longitude,Mon Open,Mon Close,Tue Open,Tue Close,Wed Open,Wed Close,Thu Open,Thu Close,Fri Open,Fri Close,Sat Open,Sat Close,Sun Open,Sun Close,Google ID\n";
+		$txt = $header_row.$txt;
+		header("Content-type: application/octet-stream");
+		header("Content-Disposition: attachment; filename=\"{$lead_finder->post_title}.csv\"");
+		echo $txt;
+		die();
 	}
 }
 $lfapi_obj = new LeadFinderApi();

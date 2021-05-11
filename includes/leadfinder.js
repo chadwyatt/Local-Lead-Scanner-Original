@@ -14,7 +14,7 @@
                 <ul>
                     <li v-for="finder in finders" v-if="showFinderInList(finder.post_title)">
                         <div>
-                            <a v-on:click="loadFinder(finder)">{{decodeHTML(finder.post_title)}}</a>
+                            <a v-on:click="loadFinder(finder)" style="cursor:pointer;">{{decodeHTML(finder.post_title)}}</a>
                         </div>
                     </li>
                 </ul>
@@ -54,7 +54,62 @@
 
 
                 <div v-if="view === 'finder'">
-                    <h2>Records</h2>
+                    
+                    
+                    <div style="float:right;display:inline-block">
+                        <span style="margin-right:5px">
+                            Website
+                            <select v-model="filters.website">
+                                <option></option>
+                                <option>Yes</option>
+                                <option>No</option>
+                            </select>
+                        </span>
+                        <span style="margin-right:5px">
+                            Reviews 
+                            <select v-model="filters.reviews.option">
+                                <option></option>
+                                <option value="<">Less than</option>
+                                <option value=">">More than</option>
+                            </select>
+                            <select v-model="filters.reviews.value">
+                                <option></option>
+                                <option>0</option>
+                                <option>1</option>
+                                <option>2</option>
+                                <option>3</option>
+                                <option>4</option>
+                                <option>5</option>
+                            </select>
+                        </span>
+                        <span style="margin-right:5px">
+                            Photos 
+                            <select v-model="filters.photos.option">
+                                <option></option>
+                                <option value="<">Less than</option>
+                                <option value=">">More than</option>
+                            </select>
+                            <select v-model="filters.photos.value">
+                                <option></option>
+                                <option>0</option>
+                                <option>1</option>
+                                <option>2</option>
+                                <option>3</option>
+                                <option>4</option>
+                                <option>5</option>
+                                <option>6</option>
+                                <option>7</option>
+                                <option>8</option>
+                                <option>9</option>
+                                <option>10</option>
+                            </select>
+                        </span>
+                        
+                        <a style="margin-left:10px;margin-right:5px;cursor:pointer;" v-on:click="download">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    </div>
+                    <h3>Records <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span></h3>
                     <table>
                         <tr>
                             <th>Business Name, Address, Phone</th>
@@ -63,10 +118,19 @@
                         <tr v-for="business in businesses">
                             <td>
                                 <div style="float:right;display:inline-block">
-                                    <div class="Stars" :style="stars(business.business_data.rating)" :label="business.business_data.rating"></div>
-                                    <div><a v-on:click="showDetails(business)" style="float:right;">Details</a></div>
+                                    <span style="margin-right:5px;">{{rating(business)}}</span>
+                                    <div class="Stars right" :style="stars(business.business_data.rating)" :label="business.business_data.rating"></div>
+                                    <div><a v-on:click="showDetails(business)" style="float:right;cursor:pointer;">Details</a></div>
                                 </div>
-                                <div><a :href="business.business_data.website" target="_blank">{{business.post_title}}</a></div>
+                                <div>
+                                    <strong>{{business.post_title}}</strong>
+                                    <a style="margin-left:5px;" v-if="business.business_data.website" :href="business.business_data.website" target="_blank">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                    <a style="margin-left:5px;" v-if="business.business_data.url" :href="business.business_data.url" target="_blank">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                    </a>
+                                </div>
                                 <div v-html="business.business_data.adr_address"></div>
                                 <div>{{business.business_data.formatted_phone_number}}</div>
                             </td>
@@ -122,10 +186,65 @@
                     <p v-html="modal_message"></p>
                 </div>
             </div>
-            <div id="details" v-bind:style="style.modalDetails" v-on:click="style.modalDetails.display = 'none'">
-                <div v-bind:style="style.modalContent">
-                    <span v-bind:style="style.modalClose" v-on:click="style.modal.display = 'none'">&times;</span>
-                    <p v-html="modal_message"></p>
+            <div id="details" v-bind:style="style.modalDetails" v-on:click="closeModalOutsideClick">
+                <div v-bind:style="style.modalDetailsContent">
+                    <span v-bind:style="style.modalClose" v-on:click="style.modalDetails.display = 'none'">&times;</span>
+                    <table>
+                        <tr>
+                            <td>Business Name</td>
+                            <td>
+                                {{currentBusiness.post_title}}
+                                <a style="margin-left:5px;" v-if="currentBusiness.business_data.url" :href="currentBusiness.business_data.url" target="_blank">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </a>
+                            </td>
+                        <tr>
+                        <tr>
+                            <td>Address</td>
+                            <td v-html="currentBusiness.business_data.adr_address"></td>
+                        <tr>
+                        <tr>
+                            <td>Phone</td>
+                            <td>{{currentBusiness.business_data.formatted_phone_number}}</td>
+                        </tr>
+                        <tr>
+                            <td>Website</td>
+                            <td>
+                                <a style="margin-left:5px;" v-if="currentBusiness.business_data.website" :href="currentBusiness.business_data.website" target="_blank">
+                                    {{currentBusiness.business_data.website}}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Phone</td>
+                            <td>{{currentBusiness.business_data.formatted_phone_number}}</td>
+                        </tr>
+                        <tr>
+                            <td>Rating</td>
+                            <td>
+                                <div class="Stars" :style="stars(currentBusiness.business_data.rating)" :label="currentBusiness.business_data.rating"></div>
+                                <span style="margin-right:5px;">{{rating(currentBusiness)}}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Photos</td>
+                            <td>{{currentBusiness.business_data.photos !== undefined ? currentBusiness.business_data.photos.length : 0}}</td>
+                        </tr>
+                        <tr>
+                            <td>Reviews</td>
+                            <td>{{currentBusiness.business_data.reviews !== undefined ? currentBusiness.business_data.reviews.length : 0}}</td>
+                        </tr>
+                        <tr>
+                            <td>Hours</td>
+                            <td>
+                                <div  v-if="currentBusiness.business_data.opening_hours !== undefined">
+                                    <div v-for="item in currentBusiness.business_data.opening_hours.weekday_text">
+                                        {{item}}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </div>
         </div>
@@ -137,6 +256,27 @@
             confirm_delete_location: null,
             finders: [],
             businesses: [],
+            original_businesses: [],
+            filters: {
+                website: null,
+                reviews: {
+                    option: null,
+                    value: null
+                },
+                photos: {
+                    option: null,
+                    value: null
+                }
+            },
+            currentBusiness: {
+                business_data: {
+                    photos: [],
+                    reviews: [],
+                    opening_hours: {
+                        weekday_text: []
+                    }
+                }
+            },
             finder: {
                 post_title: '',
                 locations_id: 0 
@@ -227,6 +367,14 @@
                     width: '80%',
                     maxWidth: '500px'
                 },
+                modalDetailsContent: {
+                    backgroundColor: '#fefefe',
+                    margin: 'auto',
+                    padding: '20px',
+                    border: '1px solid #888',
+                    width: '80%',
+                    maxWidth: '800px'
+                },
                 modalClose: {
                     color: '#aaaaaa',
                     float: 'right',
@@ -288,6 +436,7 @@
                     .then(response => response.json())
                     .then(data => {
                         this.businesses = data
+                        this.original_businesses = data
                         this.loadingRecords = false
                     })
             },
@@ -374,8 +523,7 @@
                 }
             },
             showDetails: function(business) {
-                console.log("business", business)
-                this.modal_message = business.post_title
+                this.currentBusiness = business
                 this.style.modalDetails.display = 'block'
             },
             runLeadFinder: function() {
@@ -394,6 +542,33 @@
             },
             stars: function(rating) {
                 return "--rating: " + rating + ";"
+            },
+            rating: function(business) {
+                if(business && business.business_data && business.business_data.rating)
+                    return business.business_data.rating.toFixed(1)
+                return ''
+            },
+            closeModalOutsideClick: function(event) {
+                if(event.target.id === 'details'){
+                    this.style.modalDetails.display = 'none'
+                    this.style.modal.display = 'none'
+                }
+            },
+            download: function() {
+                var url = ajaxurl+'?action=lead_finder_download&lead_finder_ID='+this.finder.ID
+                jQuery('<form action="'+ url +'" method="post"></form>')
+		            .appendTo('body').submit().remove();
+            },
+            applyFilters: function() {
+                this.businesses = this.original_businesses.filter(business => {
+                    console.log("applyFilters", this.filters.website)
+                    if(this.filters.website === 'Yes')
+                        return business.business_data.website && business.business_data.website.length
+                    else if(this.filters.website === 'No')
+                        return business.business_data.website == undefined || business.business_data.website.length == 0
+                    else
+                        return true
+                })
             }
         },
         watch: {
@@ -402,8 +577,23 @@
                 this.settingsAreValid = newV.length > 0
             },
             'settingsAreValid': function(newV, oldV) {
-                console.log('settingsAreValid', newV, oldV)
-            }
+                this.applyFilters()
+            },
+            'filters.website': function(newV, oldV) {
+                this.applyFilters()
+            },
+            'filters.reviews.option':function(newV, oldV) {
+                this.applyFilters()
+            },
+            'filters.reviews.value':function(newV, oldV) {
+                this.applyFilters()
+            },
+            'filters.photos.option':function(newV, oldV) {
+                this.applyFilters()
+            },
+            'filters.photos.value':function(newV, oldV) {
+                this.applyFilters()
+            },
         }
     });
 })();

@@ -11,9 +11,11 @@
     font-size: var(--star-size);
     font-family: Times;
     line-height: 1;
+}
+.Stars.right {
     float: right;
-  }
-  .Stars::before {
+}
+.Stars::before {
     content: "★★★★★";
     letter-spacing: -2px;
     background: linear-gradient(90deg, var(--star-background) var(--percent), var(--star-color) var(--percent));
