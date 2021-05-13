@@ -224,7 +224,13 @@ class LeadFinderApi {
 			'post_type' => 'gpapiscraper',
 			'post_status' => 'publish'
 		));
-		$this->get_finders();
+		
+		// $this->get_finders();
+		$post = get_post($ID);
+
+		header('Content-Type: application/json');
+		echo(json_encode($post));
+		die();
 	}
 
 	function update() {
@@ -277,6 +283,9 @@ class LeadFinderApi {
 	function get_locations() {
 		$user_id = get_current_user_id();
 		$locations = get_user_meta($user_id, 'lead_finder_locations', true);
+
+		$title = array_column($locations, 'title');
+		array_multisort($title, SORT_ASC, $locations);
 		header('Content-Type: application/json');
 		echo(json_encode($locations));
 		die();

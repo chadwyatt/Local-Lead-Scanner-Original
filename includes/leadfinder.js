@@ -13,13 +13,10 @@
             <div v-bind:style="style.leftColumn">
                 <input v-model="search" v-bind:style="style.input" placeholder="Search" />
                 <div v-if="loadingFinders">Loading...</div>
-                <ul>
-                    <li v-for="finder in finders" v-if="showFinderInList(finder.post_title)">
-                        <div>
-                            <a v-on:click="loadFinder(finder)" style="cursor:pointer;">{{decodeHTML(finder.post_title)}}</a>
-                        </div>
-                    </li>
-                </ul>
+                <div v-on:click="loadFinder(finder)" class="leadfinder-record" v-for="finder in finders" v-if="showFinderInList(finder.post_title)">
+                    <a>{{decodeHTML(finder.post_title)}}</a>
+                </div>
+                
             </div>
 
             <div v-bind:style="style.rightColumn">
@@ -39,7 +36,7 @@
                             <div style="clear:both;"></div>
                         </div>
                     </div>
-                    <div>
+                    <div v-if="finder.ID > 0">
                         <div style="width:39%;float:left;margin-right:2%">
                             <label>Query</label>
                             <input v-model="query" v-bind:style="[style.input, style.inputLarge]" />
@@ -64,10 +61,8 @@
 
 
                 <div v-if="view === 'finder'" style="margin-top:25px;padding-top:30px;border-top: 1px solid #ccc;">
-                    
-                    
                     <div style="float:right;display:inline-block">
-                        <a style="cursor:pointer;margin-right:5px;" v-on:click="exportWebsites">Export Websites</a>
+                        <a style="cursor:pointer;margin-right:5px;" v-on:click="exportWebsites">Copy Data</a>
                         <span style="margin-right:5px">
                             Filter: Website
                             <select v-model="filters.website">
@@ -179,6 +174,7 @@
                                     <a v-on:click="deleteLocation(location.index)" style="cursor:pointer;color:red;margin-left:10px;margin-right:10px;font-weight:bold;">Yes, Delete!</a>
                                     <a v-on:click="confirm_delete_location = null" style="cursor:pointer;">Cancel</a>
                                 </span>
+                                <button v-on:click="saveLocations" v-bind:style="style.button">Save Locations</button>
                             </div>
                         </div>
 
@@ -204,12 +200,19 @@
             </div>
             
             <div id="websitesModal" v-bind:style="style.websitesModal">
-                <div v-bind:style="style.modalContent">
+                <div v-bind:style="[style.modalContent, style.modalContentWide]">
                     <span v-bind:style="style.modalClose" v-on:click="style.websitesModal.display = 'none'">&times;</span>
-                    <p>Website URLs:</p>
-                    <textarea>
-                    {{websiteUrls}}
-                    </textarea>
+                    <h3>Copy Field Data</h3>
+                    <p>Website URLs and phone numbers are often used in various programs for marketing purposes. You can select and copy all of the values below.</p>
+                    <label style="display:block;margin-top:20px">Website URLs:
+                        <a v-on:click="copyText('website_urls')" style="float:right;cursor:pointer;">Copy</a>
+                    </label>
+                    <textarea id="website_urls" style="width:100%;height:100px;">{{websiteUrls}}</textarea>
+
+                    <label style="display:block;margin-top:20px">Phone Numbers:
+                        <a v-on:click="copyText('phone_numbers')" style="float:right;cursor:pointer;">Copy</a>
+                    </label>
+                    <textarea id="phone_numbers" style="width:100%;height:100px;">{{phoneNumbers}}</textarea>
                 </div>
             </div>
 
@@ -225,16 +228,17 @@
 
             <div id="runScraperModal" v-bind:style="style.runScraperModal">
                 <div v-bind:style="style.modalContent">
-                    <span v-bind:style="style.modalClose" v-on:click="style.runScraperModal.display = 'none'">&times;</span>
-                    <p style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Running...{{currentQuery}}</p>
-                    <div v-if="queries.length > 0 && cancelQueries == false">
-                        <p>Pending:</p>
-                        <div v-for="query in queries">
-                            <div>{{query}}</div>
+                    <p v-if="!cancelQueries" style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Running...{{currentQuery}}</p>
+                    <p v-if="cancelQueries" style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Cancelling...</dipv>
+                    <div v-if="queries || queries.length > 0 && cancelQueries == false">
+                        <p>Pending: ({{queries.length}})</p>
+                        <div style="height:200px; overflow:auto; border: 1px solid #ccc; padding:5px; margin-bottom:15px;">
+                            <div v-for="query in queries">
+                                <div>{{query}}</div>
+                            </div>
                         </div>
                     </div>
-                    <div v-if="cancelQueries" style="font-weight:bold;">Cancelling...</div>
-                    <button v-bind:style="[style.button]" v-on:click="cancelLeadFinder()">Cancel</button>
+                    <button v-bind:style="[style.button, style.buttonDelete]" v-on:click="cancelLeadFinder()">Stop</button>
                     <div style="clear:both;"></div>
                 </div>
             </div>
@@ -383,8 +387,8 @@
                     height: '100px'
                 },
                 button: {
-                    padding: '5px 10px',
-                    borderRadius: '4px',
+                    padding: '5px 15px',
+                    // borderRadius: 'px',
                     border: '1px solid #ccc',
                     marginBottom: '10px',
                     marginLeft: '10px',
@@ -397,7 +401,9 @@
                 },
                 buttonDelete: {
                     color: 'white',
-                    backgroundColor: 'red'
+                    backgroundColor: 'red',
+                    fontWeight: 'bold',
+                    border: '1px solid red',
                 },
                 modal: {
                     display: 'none',
@@ -472,6 +478,9 @@
                     width: '80%',
                     maxWidth: '500px'
                 },
+                modalContentWide: {
+                    maxWidth: '800px'
+                },
                 modalDetailsContent: {
                     backgroundColor: '#fefefe',
                     margin: 'auto',
@@ -499,13 +508,24 @@
                 return this.finder.post_title !== '' ? this.finder.post_title : 'New Lead Finder'
             },
             websiteUrls: function() {
+                //business that have a website
                 var businesses = this.businesses.filter(business => {
                     return business.business_data.website && business.business_data.website.length > 0
                 })
-                return businesses.map(business => {
-                    if(business.business_data.website && business.business_data.website.length > 0)
-                        return business.business_data.website
+                let websites = businesses.map(business => {
+                    return business.business_data.website
                 })
+                return websites.join("\n")
+            },
+            phoneNumbers: function() {
+                //business that have a phone number
+                var businesses = this.businesses.filter(business => {
+                    return business.business_data.international_phone_number && business.business_data.international_phone_number.length > 0
+                })
+                let phone_numbers = businesses.map(business => {
+                    return business.business_data.international_phone_number.replace(/-|\s/g, '')
+                })
+                return phone_numbers.join("\n")
             }
         },
         methods: {
@@ -515,6 +535,11 @@
             //         return `${this.query} near ${location}`
             //     })
             // },
+            copyText: function(id) {
+                let obj = document.getElementById(id)
+                obj.select()
+                document.execCommand("copy")
+            },
             exportWebsites: function() {
                 console.log("show websites")
                 this.style.websitesModal.display = 'block'
@@ -595,7 +620,7 @@
                     }).then((response)=>{
                         return response.json()
                     }).then((data)=>{
-                        this.flashModal('Saved!')
+                        this.flashModal('Saved!', 2)
                         this.finders = data
                     })
                 } else {
@@ -609,7 +634,9 @@
                         return response.json()
                     }).then((data)=>{
                         this.flashModal('Saved!')
-                        this.finders = data
+                        this.finder = data
+                        this.loadFinders()
+                        this.view = 'finder'
                     })
                 }
             },
@@ -745,8 +772,12 @@
                     })
                 }).then((response)=>{
                     return response.json()
-                }).then((data)=>{
+                }).then((data) => {
                     this.finders = data
+                    this.finder = {
+                        post_title: '',
+                        locations_id: 0 
+                    }
                 })
                 return
             }
