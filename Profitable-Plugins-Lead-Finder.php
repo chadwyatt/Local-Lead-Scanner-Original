@@ -3,7 +3,7 @@
 Plugin Name: Profitable Plugins Leader Finder
 Plugin URI: https://profitableplugins.com
 Description: Query the google places api for business leads.
-Version: 1.1.4
+Version: 1.2.1
 Author: Profitable Plugins
 Author URI: https://profitableplugins.com
 */
@@ -15,7 +15,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'PROFITABLE_PLUGINS_LEAD_FINDER_VERSION', '1.1.4' );
+define( 'PROFITABLE_PLUGINS_LEAD_FINDER_VERSION', '1.2.1' );
 
 
 spl_autoload_register(function ($class) {
