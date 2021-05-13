@@ -58,7 +58,6 @@ class gpapiscraper {
 		$updater->initialize();
 
 		gpapiscraper::frontend();
-		gpapiscraper::api();
 	}
 	
 	public static function admin_init(){
@@ -172,21 +171,6 @@ class gpapiscraper {
 		});
 	}
 
-	function api(){
-		// add_action('rest_api_init', function () {
-			// die("test123");
-			// register_rest_route( 'leadfinderapi', '/test', array(
-			// 	'methods'  => ['GET', 'POST'],
-			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
-			// ));
-
-			// register_rest_route( 'leadfinderapi', '/create', array(
-			// 	'methods'  => ['GET', 'POST'],
-			// 	'callback' => 'ProfitablePlugins\LeadFinder\gpapiscraper::test'
-			// ));
-		// });
-	}
-
 	function test($request) {
 		$person->fname  = "Chad";
 		$person->lname = "Wyatt";
@@ -208,6 +192,8 @@ class LeadFinderApi {
 		add_action('init', function () {
 			add_action('wp_ajax_lead_finder_list', array($this, 'get_finders'));
 			add_action('wp_ajax_lead_finder_create', array($this, 'create'));
+			add_action('wp_ajax_lead_finder_update', array($this, 'update'));
+			add_action('wp_ajax_lead_finder_delete', array($this, 'delete'));
 			add_action('wp_ajax_lead_finder_records', array($this, 'records'));
 			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
@@ -238,8 +224,43 @@ class LeadFinderApi {
 			'post_type' => 'gpapiscraper',
 			'post_status' => 'publish'
 		));
-		echo "id:".$ID;
+		
+		// $this->get_finders();
+		$post = get_post($ID);
+
+		header('Content-Type: application/json');
+		echo(json_encode($post));
 		die();
+	}
+
+	function update() {
+		$data = json_decode(file_get_contents('php://input'), true);
+		
+		$post = get_post($data['ID']);
+		if($post->post_author != get_current_user_id()){
+			echo "0";
+			die();
+		}
+
+		wp_update_post(array(
+			'ID' => $data['ID'],
+			'post_title' => $data['post_title']
+		));
+		$this->get_finders();
+	}
+
+	function delete() {
+		$data = json_decode(file_get_contents('php://input'), true);
+
+		$post = get_post($data['ID']);
+		if($post->post_author != get_current_user_id()){
+			print_r($post);
+			echo "0";
+			die();
+		}
+
+		wp_delete_post($data['ID']);
+		$this->get_finders();
 	}
 
 	function records() {
@@ -262,6 +283,9 @@ class LeadFinderApi {
 	function get_locations() {
 		$user_id = get_current_user_id();
 		$locations = get_user_meta($user_id, 'lead_finder_locations', true);
+
+		$title = array_column($locations, 'title');
+		array_multisort($title, SORT_ASC, $locations);
 		header('Content-Type: application/json');
 		echo(json_encode($locations));
 		die();
@@ -374,7 +398,3 @@ if(is_admin()){
 }
 
 add_action('init', 'ProfitablePlugins\LeadFinder\gpapiscraper::init');
-// add_action( 'plugins_loaded', 'ProfitablePlugins\\VMD\\init' );
-add_action('rest_api_init', 'ProfitablePlugins\LeadFinder\gpapiscraper::api');
-
-
