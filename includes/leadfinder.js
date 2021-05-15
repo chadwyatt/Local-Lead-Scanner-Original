@@ -1,15 +1,19 @@
 ( function() {
     var vm = new Vue({
-        el: document.querySelector('#mount'),
+        el: document.querySelector('#lf-mount'),
         template: `
         <div class="lead-finder-wrapper">
             <h1 v-bind:style="style.h1">
                 Local Lead Scanner
             </h1>
 
+            <div v-if="lf_admin_page && isAdministrator" style="margin-top:-20px;margin-bottom:20px;">
+                <i class="fas fa-info-circle"></i> You can optionally add the [local-lead-finder] shortcode to a page or post.
+            </div>
+
             <div v-if="view == 'activate'" style="max-width:700px;margin:50px auto;">
                 <h2>Activate</h2>
-                <p>Please enter your license key to register this installation.</p>
+                <p>Please enter your license key to register this installation. <a href="https://localleadscanner.com" target="_blank">Need a license?</a></p>
                 <input v-model="license_key" v-bind:style="[style.input, style.inputLarge]" />
                 <button v-bind:style="[style.button, style.buttonFullWidth]" v-on:click="activatePlugin">Activate</button>
             </div>
@@ -23,8 +27,10 @@
 
             <div v-if="view != '' && view != 'activate' && view != 'google_places_api_key'">
                 <div v-bind:style="style.leftColumn">
-                    <a v-on:click="showNewFinderForm" style="font-weight:bold;cursor:pointer;">New +</a>
-                    <a v-on:click="showSettings" style="float:right;cursor:pointer;font-weight:bold;">Settings</a>
+                    <div style="margin-bottom:5px;">
+                        <a v-on:click="showNewFinderForm" style="font-weight:bold;cursor:pointer;">New <i class="fas fa-plus-circle"></i></a>
+                        <a v-on:click="showSettings" style="float:right;cursor:pointer;font-weight:bold;">Settings <i class="fas fa-sliders-h"></i></a>
+                    </div>
                     <input v-model="search" v-bind:style="style.input" placeholder="Search" autocomplete="off" />
                 
                     <div v-if="loadingFinders">Loading...</div>
@@ -88,6 +94,15 @@
                             </span>
                             
                             <span style="margin-right:5px">
+                                Phone Type
+                                <select v-model="filters.phone_type">
+                                    <option>All</option>
+                                    <option value="wireless">Wireless</option>
+                                    <option value="landline">Landline</option>
+                                </select>
+                            </span>
+                            
+                            <span style="margin-right:5px">
                                 Reviews 
                                 <select v-model="filters.reviews">
                                     <option value="5">All</option>
@@ -139,7 +154,13 @@
                                 
                                 </div>
                                 <div v-html="business.business_data.adr_address"></div>
-                                <div>{{business.business_data.formatted_phone_number}}</div>
+                                <div>
+                                    {{business.business_data.formatted_phone_number}}
+                                    <span v-if="business.business_data.phone_type !== undefined">
+                                        <span v-if="business.business_data.phone_type == 'wireless'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-mobile-alt"></i></span>
+                                        <span v-if="business.business_data.phone_type != 'wireless'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-phone"></i></span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -211,6 +232,8 @@
                             <h3>SignalWire Phone Type Lookup</h3>
                             <p>You can optionally enable an API to tell you if a phone number is a mobile, voip, or landline. You will need the following information from your <a href="https://signalwire.com" target="_blank">signalwire.com</a> account.</p>
 
+                            <div><label><input type="checkbox" v-model="signalwire.active" /> Phone Type Lookup Active</label></div>
+
                             <label>Namespace</label>
                             <input v-model="signalwire.namespace" v-bind:style="[style.input, style.inputLarge]" />
                             
@@ -279,7 +302,12 @@
             <div id="deactivateModal" v-bind:style="style.deactivateModal">
                 <div v-bind:style="style.modalContent">
                     <span v-bind:style="style.modalClose" v-on:click="style.deactivateModal.display = 'none'">&times;</span>
-                    <p style="text-align:center;margin-top:40px;margin-bottom:30px;">Are you sure you want to deactivate this plugin and license? You can reactivate it as long has you have a license key.</p>
+                    <table style="border:none;">
+                        <tr>
+                            <td style="padding:0;"><i class="fas fa-exclamation-circle" style="margin-left:15px;font-size:4em;color:red;"></i></td>
+                            <td><p style="text-align:left;margin-top:40px;margin-bottom:30px;">Are you sure you want to deactivate this plugin and license? You can reactivate it as long has you have a license key.</p></td>
+                        </tr>
+                    </table>
                     <button v-bind:style="[style.button, style.buttonDelete]" v-on:click="deactivateLicense">Yes, Deactivate</button>
                     <button v-bind:style="[style.button]" v-on:click="style.deactivateModal.display = 'none'">Cancel</button>
                     <div style="clear:both;"></div>
@@ -290,7 +318,8 @@
                 <div v-bind:style="style.modalContent">
                     <div style="text-align:center;margin-bottom:20px;">
                         <i class="fas fa-cog fa-spin" style="font-size:4em;margin-top:30px;"></i>
-                        <p v-if="!cancelQueries" style="margin-top: 15px;margin-bottom: 15px;font-weight: bold;font-size: 1.5em;">"{{currentQuery}}"</p>
+                        <p v-if="!cancelQueries" style="margin-top: 15px;font-weight: bold;font-size: 1.5em;">"{{currentQuery}}"</p>
+                        <div v-if="signalwire.active">Phone type lookup is active.</div>
                         <p v-if="cancelQueries" style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Cancelling...</p>
                     </div>
                     <div v-if="queries || queries.length > 0 && cancelQueries == false">
@@ -325,7 +354,13 @@
                         <tr>
                         <tr>
                             <td>Phone</td>
-                            <td>{{currentBusiness.business_data.formatted_phone_number}}</td>
+                            <td>
+                                {{currentBusiness.business_data.formatted_phone_number}}
+                                <span v-if="currentBusiness.business_data.phone_type !== undefined">
+                                    <span v-if="currentBusiness.business_data.phone_type == 'wireless'" :title="currentBusiness.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-mobile-alt"></i></span>
+                                    <span v-if="currentBusiness.business_data.phone_type != 'wireless'" :title="currentBusiness.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-phone"></i></span>
+                                </span>
+                            </td>
                         </tr>
                         <tr>
                             <td>Website</td>
@@ -334,10 +369,6 @@
                                     {{currentBusiness.business_data.website}}
                                 </a>
                             </td>
-                        </tr>
-                        <tr>
-                            <td>Phone</td>
-                            <td>{{currentBusiness.business_data.formatted_phone_number}}</td>
                         </tr>
                         <tr>
                             <td>Rating</td>
@@ -367,7 +398,7 @@
                     </table>
                 </div>
             </div>
-
+            <div style="clear:both;"></div>
         </div>
         `,
         data: {
@@ -385,6 +416,7 @@
             showApiKeyField: false,
             filters: {
                 website: 'All',
+                phone_type: 'All',
                 reviews: 5,
                 rating: 5,
                 photos: 10
@@ -403,6 +435,7 @@
                 locations_id: 0 
             },
             signalwire: {
+                active: '',
                 namespace: '',
                 project_id: '',
                 api_token: ''
@@ -431,7 +464,9 @@
                     float: 'left',
                     marginRight: '1%',
                     border: '1px solid #ccc',
-                    padding: '10px 15px'
+                    padding: '10px 15px',
+                    backgroundColor: '#fff',
+                    borderRadius: '3px'
                 },
                 rightColumn: {
                     width: '71%',
@@ -645,6 +680,8 @@
                 this.style.deactivateModal.display = 'block'
             },
             deactivateLicense: function() {
+                this.style.deactivateModal.display = 'none'
+                this.alert({message: "Deactivating..."})
                 var url = ajaxurl+'?action=lead_finder_deactivate_license'
                 fetch(url).then((response) => {
                     this.style.deactivateModal.display = 'none'
@@ -652,6 +689,7 @@
                 }).then((data) => {
                     this.license_status = ''
                     this.view = 'activate'
+                    this.alert({message: "Plugin Deactivated", type:"success", time: 2, delay: 1})
                 })
             },
             activatePlugin: function() {
@@ -662,6 +700,7 @@
                 }
 
                 var url = ajaxurl+'?action=lead_finder_activate_license&license_key='+this.license_key
+                this.alert({message: "Checking key..."})
                 fetch(url).then((response) => {
                     return response.json()
                 }).then((data) => {
@@ -671,10 +710,10 @@
                         // this.loadFinders()
                         // g.loadLocations()
                         this.getSettings()
-                        this.alert({message: "Plugin Activated", type:"success", time: 3})
+                        this.alert({message: "Plugin Activated", type:"success", time: 2, delay: 1})
                     } else {
                         // this.flashModal("Error: "+data.message)
-                        this.alert({message: data.message, type: "error"})
+                        this.alert({message: data.message, type: "error", delay:1})
                     }
                 })
             },
@@ -972,7 +1011,7 @@
                 const lines = []
 
                 //array of data table fields for csv header row
-                const fields = ["Name", "Phone", "Full Address", "Street", "City", "State", "Country", "Postal Code", "Website", "Google Places URL", "Photos", "Reviews", "Rating", "Latitude", "Longitude", "Google ID"]
+                const fields = ["Name", "Phone", "Phone Type", "Full Address", "Street", "City", "State", "Country", "Postal Code", "Website", "Google Places URL", "Photos", "Reviews", "Rating", "Latitude", "Longitude", "Google ID"]
                 
                 //build the string and add to lines array
                 lines.push(`"`+fields.join(`","`)+`"`)
@@ -990,6 +1029,7 @@
                     })
                     values.push(b.name)
                     values.push(b.international_phone_number !== undefined ? b.international_phone_number.replace(/-|\s/g, '') : "")
+                    values.push(b.phone_type !== undefined ? b.phone_type : '')
                     values.push(b.formatted_address)
                     values.push(address['street_number']+' '+address['route'])
                     values.push(address['locality'])
@@ -1048,13 +1088,22 @@
                     else
                         return true
                 })
+
+                filtered_businesses = filtered_businesses.filter(business => {
+                    if(this.filters.phone_type === 'wireless')
+                        return business.business_data.phone_type == 'wireless'
+                    else if(this.filters.phone_type === 'landline')
+                        return business.business_data.phone_type == 'landline'
+                    else
+                        return true
+                })
             
                 filtered_businesses = filtered_businesses.filter(business => {
                     return business.business_data.reviews === undefined || business.business_data.reviews.length <= this.filters.reviews
                 })
 
                 filtered_businesses = filtered_businesses.filter(business => {
-                    return business.business_data.rating <= parseInt(this.filters.rating)
+                    return business.business_data.rating === undefined || business.business_data.rating <= parseInt(this.filters.rating)
                 })
 
                 this.businesses = filtered_businesses
@@ -1097,6 +1146,9 @@
                 this.applyFilters()
             },
             'filters.rating':function(newV, oldV) {
+                this.applyFilters()
+            },
+            'filters.phone_type': function(newV, oldV) {
                 this.applyFilters()
             }
         }

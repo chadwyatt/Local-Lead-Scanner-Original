@@ -73,8 +73,9 @@ class gpapiscraper {
 			return '
 				<script>
 					var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
+					var lf_admin_page = false
 				</script>
-				<div id="mount"></div>
+				<div id="lf-mount"></div>
 			';
 		});
 	}
@@ -122,8 +123,9 @@ class LeadFinderApi {
 				<div class="wrap" style="padding-right:1%">
 					<script>
 						var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
+						var lf_admin_page = true
 					</script>
-					<div id="mount"></div>
+					<div id="lf-mount"></div>
 				</div>
 			';
 	}

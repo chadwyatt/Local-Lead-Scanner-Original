@@ -9,7 +9,12 @@ if($key == '')
 
 define('APIKEY', $key);
 
-
+//used in get_details
+// $user_id = get_current_user_id();
+// global $signalwire;
+// $signalwire = get_user_meta($user->ID, 'signalwire', true);
+// echo "Start: ";
+// print_r($signalwire);	
 
 //ini_set('max_execution_time', "120");
 if ($_GET["download_data"] == "1")
@@ -83,69 +88,45 @@ function run_scraper($pagetoken = ''){
 }
 
 function get_details($b){
-	// foreach($data['results'] as $b){
-		// echo '<pre>';
-		// print_r( $data['results'] );
-		// echo '</pre>';
-		// die();
-		$url = sprintf('https://maps.googleapis.com/maps/api/place/details/json?reference=%s&sensor=false&key=%s', $b['reference'], APIKEY);
-		$result = curl_operation($url);
-		//print_r($result);
-		$business = json_decode($result, 1);
-		$business = $business['result'];
-		//print_r($business);
-		//die();
-		
-		foreach($business['address_components'] as $a){
-			$address[ $a['types'][0] ] = $a['long_name'];
-		}
-		
-		$phone = str_replace(array(" ", "-"), array("", ""), $business['international_phone_number']);
+	$url = sprintf('https://maps.googleapis.com/maps/api/place/details/json?reference=%s&sensor=false&key=%s', $b['reference'], APIKEY);
+	$result = curl_operation($url);
+	$business = json_decode($result, 1);
+	$business = $business['result'];
 
-		echo "<tr>";
-		echo "<td style=\"white-space:nowrap;\">$b[name]</td>";
-		echo "<td class=\"phone\">".$phone."</td>";
-		echo "<td style=\"white-space:nowrap;\">$b[formatted_address]</td>";
-		echo "<td style=\"white-space:nowrap;\">$address[street_number] $address[route]</td>";
-		echo "<td>$address[locality]</td>";
-		echo "<td>$address[administrative_area_level_1]</td>";
-		echo "<td>$address[country]</td>";
-		echo "<td>$address[postal_code]</td>";
-		// echo "<td>".str_replace(array(" ", "-"), array("", ""), $business['international_phone_number'])."</td>";
-		echo "<td>$business[website]</td>";
-		echo "<td>$business[url]</td>";
-		echo "<td>".count($business['photos'])."</td>";
-		echo "<td>".count($business['reviews'])."</td>";
-		echo "<td>$business[rating]</td>";
-		echo "<td>{$business[geometry][location][lat]}</td>";
-		echo "<td>{$business[geometry][location][lng]}</td>";
-		
-		$p = $business['opening_hours']['periods'];
-		for($i=0; $i < 7; $i++){
-			echo "<td>".$p[$i]['open']['time']."</td>";
-			echo "<td>".$p[$i]['close']['time']."</td>";
-		}
-		echo "<td>$business[id]</td>";
-		echo "<td>$_REQUEST[query]</td>";
-		echo "</tr>\n";
+	foreach($business['address_components'] as $a){
+		$address[ $a['types'][0] ] = $a['long_name'];
+	}
+	
+	$phone = str_replace(array(" ", "-"), array("", ""), $business['international_phone_number']);
 
-		//create a phone meta data record, will be used in VM Drop plugin
-		update_post_meta($_REQUEST['post_ID'], sprintf('_phone_%s', $phone), $phone);
+	//lookup phone type
+	$user_id = get_current_user_id();
+	$signalwire = get_user_meta($user_id, 'signalwire', true);
+	if($signalwire['active'] == 1) {
+		$url = sprintf('https://%s.signalwire.com/api/relay/rest/lookup/phone_number/%s?include=carrier,cnam', $signalwire['namespace'], $phone);
+		$basicauth = 'Basic ' . base64_encode( $signalwire['project_id'].':'.$signalwire['api_token'] );
+		$lookup = wp_remote_get($url, array('headers' => array('Authorization' => $basicauth)));
+		$lookup = json_decode($lookup['body'], true);
+		$phone_type = $lookup['carrier']['linetype'];
+		$business['phone_type'] = $phone_type;
+	}
 
-		// error_log(print_r($business, true));
+	//create a phone meta data record, will be used in VM Drop plugin
+	update_post_meta($_REQUEST['post_ID'], sprintf('_phone_%s', $phone), $phone);
 
-		//save business record
-		$post = array(
-			'post_type' => 'pp_lead_record',
-			'post_status' => 'publish',
-			'post_parent' => $_REQUEST['post_ID'],
-			'post_title' => $b['name']
-		);
-		$ID = wp_insert_post($post);
-		update_post_meta($ID, 'business_reference', $b['reference']);
-		update_post_meta($ID, 'business_data', $business);
-		
-	// }
+	// error_log(print_r($business, true));
+
+	//save business record
+	$post = array(
+		'post_type' => 'pp_lead_record',
+		'post_status' => 'publish',
+		'post_parent' => $_REQUEST['post_ID'],
+		'post_title' => $b['name']
+	);
+	$ID = wp_insert_post($post);
+	update_post_meta($ID, 'business_reference', $b['reference']);
+	update_post_meta($ID, 'business_data', $business);
+
 }
 
 
