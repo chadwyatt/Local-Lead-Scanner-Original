@@ -1,6 +1,6 @@
 <?php
 
-namespace ProfitablePlugins\LeadFinder;
+namespace LocalLeadScanner;
 
 class Updater {
     protected static $instance = null;

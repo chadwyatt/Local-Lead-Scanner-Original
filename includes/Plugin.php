@@ -1,5 +1,5 @@
 <?php
-namespace ProfitablePlugins\LeadFinder;
+namespace LocalLeadScanner;
 
 /**
  * @subpackage Plugin
@@ -15,7 +15,7 @@ class Plugin {
 	 *
 	 * @var      string
 	 */
-	protected $plugin_slug = 'profitable-plugins-lead-finder';
+	protected $plugin_slug = 'local-lead-scanner';
 
 	/**
 	 * Instance of this class.
@@ -32,7 +32,7 @@ class Plugin {
 	 * @since     1.0.0
 	 */
 	private function __construct() {
-		$this->plugin_version = PROFITABLE_PLUGINS_LEAD_FINDER_VERSION;
+		$this->plugin_version = LOCAL_LEAD_SCANNER_VERSION;
 	}
 
 	/**

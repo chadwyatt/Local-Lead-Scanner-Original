@@ -29,4 +29,46 @@
 .leadfinder-record:hover {
   background-color:#efefef;
 }
-  
+.lf-icon-alert-modal {
+  text-align: center;
+  margin: 30px;
+}
+.lf-icon-alert-modal.lf-success {
+  color: green;
+}
+.lf-icon-alert-modal.lf-error {
+  color: red;
+}
+.lf-icon-alert-modal.lf-info {
+  color: #1f48e4;
+}
+.lf-icon-alert-modal .lf-alert-icon {
+  font-size: 5em;
+  margin-bottom: 20px;
+}
+.lf-icon-alert-modal .lf-alert-message {
+  font-size: 2em;
+  text-align: center;
+  font-weight: bold;
+}
+.lf-icon-alert-modal .lf-alert-subtext {
+  color: #999;
+  margin-top: 20px;
+}
+.lf-table {
+  width: 100%;
+  border: 1px solid #ccc;
+}
+.lf-table th, .lf-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+.lf-record {
+  padding: 13px 15px;
+  border: 1px solid #e6e3e3;
+  margin: 13px 0px;
+  background-color: #fff;
+}
+.lead-finder-wrapper a {
+  cursor: pointer;
+}

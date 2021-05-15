@@ -4,128 +4,123 @@
         template: `
         <div class="lead-finder-wrapper">
             <h1 v-bind:style="style.h1">
-                Lead Finder
+                Local Lead Scanner
             </h1>
-            <a v-on:click="showNewFinderForm" style="float:right;cursor:pointer;margin-right:15px;">New Lead Finder</a>
-            <a v-on:click="showSettings" style="float:right;cursor:pointer;margin-right:15px;">Settings</a>
-            <a v-if="finder.ID > 0 && view !== 'settings'" v-on:click="confirmDelete" style="float:right;cursor:pointer;color:red;margin-right:15px;">Delete</a>
 
-            <div v-bind:style="style.leftColumn">
-                <input v-model="search" v-bind:style="style.input" placeholder="Search" />
-                <div v-if="loadingFinders">Loading...</div>
-                <div v-on:click="loadFinder(finder)" class="leadfinder-record" v-for="finder in finders" v-if="showFinderInList(finder.post_title)">
-                    <a>{{decodeHTML(finder.post_title)}}</a>
-                </div>
-                
+            <div v-if="view == 'activate'" style="max-width:700px;margin:50px auto;">
+                <h2>Activate</h2>
+                <p>Please enter your license key to register this installation.</p>
+                <input v-model="license_key" v-bind:style="[style.input, style.inputLarge]" />
+                <button v-bind:style="[style.button, style.buttonFullWidth]" v-on:click="activatePlugin">Activate</button>
             </div>
 
-            <div v-bind:style="style.rightColumn">
+            <div v-if="view == 'google_places_api_key'" style="max-width:700px;margin:50px auto;">
+                <h3>API Key</h3>
+                <label>Google Places API Key</label>
+                <input type="password" v-model="update_google_places_api_key" v-bind:style="[style.input, style.inputLarge]" />
+                <button v-bind:style="style.button" v-on:click="saveApiKey">Save API Key</button>
+            </div>
 
+            <div v-if="view != '' && view != 'activate' && view != 'google_places_api_key'">
+                <div v-bind:style="style.leftColumn">
+                    <a v-on:click="showNewFinderForm" style="font-weight:bold;cursor:pointer;">New +</a>
+                    <a v-on:click="showSettings" style="float:right;cursor:pointer;font-weight:bold;">Settings</a>
+                    <input v-model="search" v-bind:style="style.input" placeholder="Search" autocomplete="off" />
+                
+                    <div v-if="loadingFinders">Loading...</div>
+                    <div v-on:click="loadFinder(finder)" class="leadfinder-record" v-for="finder in finders" v-if="showFinderInList(finder.post_title)">
+                        <a>{{decodeHTML(finder.post_title)}}</a>
+                    </div>
+                </div>
 
-                <div v-if="view !== 'settings'">
-                    <h2>{{decodeHTML(finderTitle)}}</h2>
-                    <div>
-                        <label>Title</label>
+                <div v-bind:style="style.rightColumn">
+                    <div v-if="view !== 'settings'" style="background-color:#fff;padding:15px;border: 1px solid #ccc;">
+                        <a v-if="finder.ID > 0 && view !== 'settings'" v-on:click="confirmDelete" style="float:right;cursor:pointer;color:red;margin-right:15px;">Delete</a>
+                        <h2>{{decodeHTML(finderTitle)}}</h2>
                         <div>
-                            <div style="width:80%;float:left;">
-                                <input v-model="finder.post_title" v-bind:style="[style.input, style.inputLarge]" />
+                            <label>Title</label>
+                            <div>
+                                <div style="width:80%;float:left;">
+                                    <input v-model="finder.post_title" v-bind:style="[style.input, style.inputLarge]" />
+                                </div>
+                                <div style="width:18%;float:right;">
+                                    <button v-bind:style="[style.button, style.buttonFullWidth]" v-on:click="saveLeadFinder">Save Title</button>
+                                </div>
+                                <div style="clear:both;"></div>
+                            </div>
+                        </div>
+                        <div v-if="finder.ID > 0">
+                            <div style="width:39%;float:left;margin-right:2%">
+                                <label>Query</label>
+                                <input v-model="query" v-bind:style="[style.input, style.inputLarge]" />
+                            </div>
+                            <div style="width:39%; float:left;margin-right:2%">
+                                <label>Locations</label>
+                                <select label="Locations" v-model="location" :items="finder.locations" v-bind:style="[style.input, style.inputLarge]">
+                                    <option value="">Select location (optional)</option>
+                                    <option v-for="location in locations" v-bind:value="location.locations">
+                                        {{ location.title }}
+                                    </option>
+                                </select>
                             </div>
                             <div style="width:18%;float:right;">
-                                <button v-bind:style="[style.button, style.buttonFullWidth]" v-on:click="saveLeadFinder">Save Title</button>
+                                <label>&nbsp;</label>
+                                <button v-bind:style="[style.button, style.buttonFullWidth]" v-on:click="runLeadFinder">Run Scanner</button>
                             </div>
                             <div style="clear:both;"></div>
                         </div>
-                    </div>
-                    <div v-if="finder.ID > 0">
-                        <div style="width:39%;float:left;margin-right:2%">
-                            <label>Query</label>
-                            <input v-model="query" v-bind:style="[style.input, style.inputLarge]" />
-                        </div>
-                        <div style="width:39%; float:left;margin-right:2%">
-                            <label>Locations</label>
-                            <select label="Locations" v-model="location" :items="finder.locations" v-bind:style="[style.input, style.inputLarge]">
-                                <option value="">Select location (optional)</option>
-                                <option v-for="location in locations" v-bind:value="location.locations">
-                                    {{ location.title }}
-                                </option>
-                            </select>
-                        </div>
-                        <div style="width:18%;float:right;">
-                            <label>&nbsp;</label>
-                            <button v-bind:style="[style.button, style.buttonFullWidth]" v-on:click="runLeadFinder">Run Lead Finder</button>
-                        </div>
                         <div style="clear:both;"></div>
                     </div>
-                    <div style="clear:both;"></div>
-                </div>
 
 
-                <div v-if="view === 'finder'" style="margin-top:25px;padding-top:30px;border-top: 1px solid #ccc;">
-                    <div style="float:right;display:inline-block">
-                        <a style="cursor:pointer;margin-right:5px;" v-on:click="exportWebsites">Copy Data</a>
-                        <span style="margin-right:5px">
-                            Filter: Website
-                            <select v-model="filters.website">
-                                <option></option>
-                                <option>Yes</option>
-                                <option>No</option>
-                            </select>
-                        </span>
-                        <!--
-                        <span style="margin-right:5px">
-                            Reviews 
-                            <select v-model="filters.reviews.option">
-                                <option></option>
-                                <option value="<">Less than</option>
-                                <option value="=">Equal to</option>
-                                <option value=">">More than</option>
-                            </select>
-                            <select v-model="filters.reviews.value">
-                                <option></option>
-                                <option>0</option>
-                                <option>1</option>
-                                <option>2</option>
-                                <option>3</option>
-                                <option>4</option>
-                                <option>5</option>
-                            </select>
-                        </span>
-                        <span style="margin-right:5px">
-                            Photos 
-                            <select v-model="filters.photos.option">
-                                <option></option>
-                                <option value="<">Less than</option>
-                                <option value="=">Equal to</option>
-                                <option value=">">More than</option>
-                            </select>
-                            <select v-model="filters.photos.value">
-                                <option></option>
-                                <option>0</option>
-                                <option>1</option>
-                                <option>2</option>
-                                <option>3</option>
-                                <option>4</option>
-                                <option>5</option>
-                                <option>6</option>
-                                <option>7</option>
-                                <option>8</option>
-                                <option>9</option>
-                                <option>10</option>
-                            </select>
-                        </span>
-                        -->
-                        <a style="margin-left:10px;margin-right:5px;cursor:pointer;" v-on:click="download">
-                            <i class="fas fa-download"></i> Download
-                        </a>
-                    </div>
-                    <h3>Records <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span></h3>
-                    <table>
-                        <tr>
-                            <th>Business Name, Address, Phone</th>
-                        </tr>
-                        <tr v-if="loadingRecords"><td>Loading...</td></tr>
-                        <tr v-for="business in businesses">
-                            <td>
+                    <div v-if="view === 'finder'" style="margin-top:30px;">
+                        <h3>Records <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span></h3>
+                        
+                        <div style="margin-bottom:16px;">
+                            <strong>Filters:</strong> 
+                            <span style="margin-right:5px">
+                                Website
+                                <select v-model="filters.website">
+                                    <option>All</option>
+                                    <option>Yes</option>
+                                    <option>No</option>
+                                </select>
+                            </span>
+                            
+                            <span style="margin-right:5px">
+                                Reviews 
+                                <select v-model="filters.reviews">
+                                    <option value="5">All</option>
+                                    <option value="4">4 or less</option>
+                                    <option value="3">3 or less</option>
+                                    <option value="2">2 or less</option>
+                                    <option value="1">1 or less</option>
+                                    <option value="0">0</option>
+                                </select>
+                            </span>
+
+                            <span style="margin-right:5px">
+                                Rating 
+                                <select v-model="filters.rating">
+                                    <option value="5">All</option>
+                                    <option value="4.5">4.5 or lower</option>
+                                    <option value="4">4 or lower</option>
+                                    <option value="3.5">3.5 or lower</option>
+                                    <option value="3">3 or lower</option>
+                                    <option value="2.5">2.5 or lower</option>
+                                    <option value="2">2 or lower</option>
+                                    <option value="1.5">1.5 or lower</option>
+                                    <option value="1">1 or lower</option>
+                                </select>
+                            </span>
+                            <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download()">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                            <a style="cursor:pointer;margin-right:5px;" v-on:click="exportWebsites">Copy Data</a>
+                        </div>
+                        <div class="lf-records">
+                            <div v-if="loadingRecords">Loading...</div>
+                            <div v-for="business in businesses" class="lf-record">
                                 <div style="float:right;display:inline-block">
                                     <a style="margin-left:5px;" v-if="business.business_data.website" :href="business.business_data.website" target="_blank">
                                         <i class="fas fa-external-link-alt"></i>
@@ -134,60 +129,89 @@
                                         <i class="fas fa-map-marker-alt"></i>
                                     </a>
                                     <span style="margin-right:5px;">{{rating(business)}}</span>
+                                    <span style="margin-right:5px;">({{reviewsCount(business)}})</span>
                                     <div class="Stars right" :style="stars(rating(business))" :label="business.business_data.rating"></div>
+                                    <div style="clear:both;"></div>
                                     <div><a v-on:click="showDetails(business)" style="float:right;cursor:pointer;">Details</a></div>
                                 </div>
                                 <div>
                                     <strong>{{business.post_title}}</strong>
-                                   
+                                
                                 </div>
                                 <div v-html="business.business_data.adr_address"></div>
                                 <div>{{business.business_data.formatted_phone_number}}</div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
-                <div v-if="view === 'settings'">
-                    <h2 style="border-bottom:1px solid #ccc;margin-bottom:30px;">Settings</h2>
-                    
-                    <div style="margin-bottom:30px;">
-                        <h3>API Key</h3>
-                        <label>Google Places API Key</label>
-                        <input type="password" v-model="google_places_api_key" v-bind:style="[style.input, style.inputLarge]" />
-                        <button v-bind:style="style.button" v-on:click="saveApiKey">Save API Key</button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div style="margin-bottom:30px;">
-                        <h3>Locations</h3>
+                    <div v-if="view === 'settings'">
+                        <a v-if="isAdministrator" style="float:right;cursor:pointer;margin-left:15px;" v-on:click="confirmDeactivate">Deactivate</a>
+                        <h2 style="border-bottom:1px solid #ccc;margin-bottom:10px;">Settings</h2>
+                        <div style="margin-bottom:20px">
+                            <a v-on:click="settings_view = 'locations'">Locations</a> | 
+                            <a v-on:click="settings_view = 'phone_lookup'">Phone Type Lookup</a> | 
+                            <a v-on:click="settings_view = 'google_api_key'">Google API Key</a>
+                        </div>
 
-                        <div v-for="location in locations" style="margin-bottom:30px">
-                            <label>Title</label>
-                            <input v-model="location.title" v-bind:style="[style.input, style.inputLarge]" />
+                        <div v-if="settings_view === 'google_api_key'" style="margin-bottom:30px;">
+                            <h3>API Key</h3>
+                            <label>Google Places API Key</label>
+                            <input type="password" v-model="update_google_places_api_key" v-bind:style="[style.input, style.inputLarge]" />
+                            <button v-bind:style="style.button" v-on:click="saveApiKey">Save API Key</button>
+                        </div>
 
-                            <label>Locations</label>
-                            <textarea v-model="location.locations" v-bind:style="[style.input, style.inputLarge, style.textarea]"></textarea>
-                            <div style="text-align:right;">
-                                <a v-if="confirm_delete_location !== location.index" v-on:click="confirm_delete_location = location.index" style="cursor:pointer;">Delete Location</a>
-                                <span v-if="confirm_delete_location === location.index">
-                                    Are you sure you want to delete this location? 
-                                    <a v-on:click="deleteLocation(location.index)" style="cursor:pointer;color:red;margin-left:10px;margin-right:10px;font-weight:bold;">Yes, Delete!</a>
-                                    <a v-on:click="confirm_delete_location = null" style="cursor:pointer;">Cancel</a>
-                                </span>
-                                <button v-on:click="saveLocations" v-bind:style="style.button">Save Locations</button>
+                        <div v-if="settings_view === 'locations'" style="margin-bottom:30px;">
+                            
+                            <div style="width:30%;float:left;">
+                                <div>Locations</div>
+                                <div style="background-color:white;border:1px solid #ccc;padding:12px;">
+                                    <div style="font-weight:bold;margin-bottom:10px;"><a v-on:click="locations_view = 'new'">New Location +</a></div>
+                                    <div v-for="location in locations">
+                                        <a v-on:click="editLocation(location)">{{location.title}}</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="width:68%;float:right;">
+                                <div v-if="locations_view !== 'new'">
+                                    <div v-for="location in locations">
+                                        <div v-if="location.index == edit_location.index">
+                                            <label>Title</label>
+                                            <input v-model="location.title" v-bind:style="[style.input, style.inputLarge]" />
+
+                                            <label>Locations</label>
+                                            <textarea v-model="location.locations" v-bind:style="[style.input, style.inputLarge, style.textarea]"></textarea>
+                                            <div style="text-align:right;">
+                                                <a v-if="confirm_delete_location !== location.index" v-on:click="confirm_delete_location = location.index" style="cursor:pointer;">Delete Location</a>
+                                                <span v-if="confirm_delete_location === location.index">
+                                                    Are you sure you want to delete this location? 
+                                                    <a v-on:click="deleteLocation(location.index)" style="cursor:pointer;color:red;margin-left:10px;margin-right:10px;font-weight:bold;">Yes, Delete!</a>
+                                                    <a v-on:click="confirm_delete_location = null" style="cursor:pointer;">Cancel</a>
+                                                </span>
+                                                <button v-on:click="saveLocations" v-bind:style="style.button">Save Location</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="locations_view == 'new'" style="margin-bottom:40px">
+                                    <label>New Location Title</label>
+                                    <input v-model="new_location.title" v-bind:style="[style.input, style.inputLarge]" />
+
+                                    <label>Locations</label>
+                                    <textarea v-model="new_location.locations" v-bind:style="[style.input, style.inputSmall, style.textarea]"></textarea>
+                                    <button v-on:click="saveLocations" v-bind:style="style.button">Save Location</button>
+                                </div>
+
                             </div>
                         </div>
 
-                        <div style="margin-bottom:40px">
-                            <h3>Add New Location</h3>
-                            <label>Title</label>
-                            <input v-model="new_location.title" v-bind:style="[style.input, style.inputLarge]" />
+                        <div v-if="settings_view === 'phone_lookup'" style="margin-bottom:30px;">
+                            <h3>Phone Type Lookup</h3>
 
-                            <label>Locations</label>
-                            <textarea v-model="new_location.locations" v-bind:style="[style.input, style.inputSmall, style.textarea]"></textarea>
+                            
                         </div>
 
-                        <button v-on:click="saveLocations" v-bind:style="style.button">Save Locations</button>
                     </div>
                 </div>
             </div>
@@ -204,35 +228,63 @@
                     <span v-bind:style="style.modalClose" v-on:click="style.websitesModal.display = 'none'">&times;</span>
                     <h3>Copy Field Data</h3>
                     <p>Website URLs and phone numbers are often used in various programs for marketing purposes. You can select and copy all of the values below.</p>
-                    <label style="display:block;margin-top:20px">Website URLs:
-                        <a v-on:click="copyText('website_urls')" style="float:right;cursor:pointer;">Copy</a>
-                    </label>
-                    <textarea id="website_urls" style="width:100%;height:100px;">{{websiteUrls}}</textarea>
-
-                    <label style="display:block;margin-top:20px">Phone Numbers:
-                        <a v-on:click="copyText('phone_numbers')" style="float:right;cursor:pointer;">Copy</a>
-                    </label>
-                    <textarea id="phone_numbers" style="width:100%;height:100px;">{{phoneNumbers}}</textarea>
+                    <div>
+                        <div style="width:48%;float:left;">
+                            <label style="display:block;margin-top:20px"><strong>Website URLs:</strong>
+                                <a v-on:click="copyText('lf_website_urls')" style="float:right;cursor:pointer;" title="Copy"><i class="fas fa-copy"></i></a>
+                                <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download(websiteUrls, finder.post_title+'-websites')" title="Download"><i class="fas fa-download"></i></a>
+                            </label>
+                            <textarea id="lf_website_urls" style="width:100%;height:100px;white-space:nowrap;overflow:auto;">{{websiteUrls}}</textarea>
+                        </div>
+                        <div style="width:48%;float:right;">
+                            <label style="display:block;margin-top:20px"><strong>Phone Numbers:</strong>
+                                <a v-on:click="copyText('lf_phone_numbers')" style="float:right;cursor:pointer;" title="Copy"><i class="fas fa-copy"></i></a>
+                                <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download(phoneNumbers, finder.post_title+'-phone-numbers')" title="Download"><i class="fas fa-download"></i></a>
+                            </label>
+                            <textarea id="lf_phone_numbers" style="width:100%;height:100px;white-space:nowrap;overflow:auto;">{{phoneNumbers}}</textarea>
+                        </div>
+                        <div style="clear:both;"></div>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-top:20px"><strong>All Records (filtered):</strong>
+                            <a v-on:click="copyText('lf_all_data')" style="float:right;cursor:pointer;" title="Copy"><i class="fas fa-copy"></i></a>
+                            <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download()" title="Download"><i class="fas fa-download"></i></a>
+                        </label>
+                        <textarea id="lf_all_data" style="width:100%;height:100px;white-space:nowrap;overflow:auto;">{{csvData()}}</textarea>
+                    </div>
                 </div>
             </div>
 
             <div id="deleteModal" v-bind:style="style.modalDelete">
                 <div v-bind:style="style.modalContent">
                     <span v-bind:style="style.modalClose" v-on:click="style.modalDelete.display = 'none'">&times;</span>
-                    <p style="text-align:center;margin-top:40px;margin-bottom:30px;">Are you sure you want to delete this Lead Finder?</p>
+                    <p style="text-align:center;margin-top:40px;margin-bottom:30px;">Are you sure you want to delete this?</p>
                     <button v-bind:style="[style.button, style.buttonDelete]" v-on:click="deleteLeadFinder">Yes, Delete</button>
                     <button v-bind:style="[style.button]" v-on:click="style.modalDelete.display = 'none'">Cancel</button>
                     <div style="clear:both;"></div>
                 </div>
             </div>
 
+            <div id="deactivateModal" v-bind:style="style.deactivateModal">
+                <div v-bind:style="style.modalContent">
+                    <span v-bind:style="style.modalClose" v-on:click="style.deactivateModal.display = 'none'">&times;</span>
+                    <p style="text-align:center;margin-top:40px;margin-bottom:30px;">Are you sure you want to deactivate this plugin and license? You can reactivate it as long has you have a license key.</p>
+                    <button v-bind:style="[style.button, style.buttonDelete]" v-on:click="deactivateLicense">Yes, Deactivate</button>
+                    <button v-bind:style="[style.button]" v-on:click="style.deactivateModal.display = 'none'">Cancel</button>
+                    <div style="clear:both;"></div>
+                </div>
+            </div>
+
             <div id="runScraperModal" v-bind:style="style.runScraperModal">
                 <div v-bind:style="style.modalContent">
-                    <p v-if="!cancelQueries" style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Running...{{currentQuery}}</p>
-                    <p v-if="cancelQueries" style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Cancelling...</dipv>
+                    <div style="text-align:center;margin-bottom:20px;">
+                        <i class="fas fa-cog fa-spin" style="font-size:4em;margin-top:30px;"></i>
+                        <p v-if="!cancelQueries" style="margin-top: 15px;margin-bottom: 15px;font-weight: bold;font-size: 1.5em;">"{{currentQuery}}"</p>
+                        <p v-if="cancelQueries" style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Cancelling...</p>
+                    </div>
                     <div v-if="queries || queries.length > 0 && cancelQueries == false">
                         <p>Pending: ({{queries.length}})</p>
-                        <div style="height:200px; overflow:auto; border: 1px solid #ccc; padding:5px; margin-bottom:15px;">
+                        <div style="height:100px; overflow:auto; border: 1px solid #ccc; padding:5px; margin-bottom:15px;">
                             <div v-for="query in queries">
                                 <div>{{query}}</div>
                             </div>
@@ -246,7 +298,7 @@
             <div id="details" v-bind:style="style.modalDetails" v-on:click="closeModalOutsideClick">
                 <div v-bind:style="style.modalDetailsContent">
                     <span v-bind:style="style.modalClose" v-on:click="style.modalDetails.display = 'none'">&times;</span>
-                    <table>
+                    <table class="lf-table" style="margin-top:30px;">
                         <tr>
                             <td>Business Name</td>
                             <td>
@@ -308,23 +360,23 @@
         </div>
         `,
         data: {
+            license_key: '',
+            roles: [],
             loadingFinders: false,
             loadingRecords: false,
             google_places_api_key: '',
+            update_google_places_api_key: '',
             confirm_delete_location: null,
             finders: [],
             businesses: [],
             original_businesses: [],
+            license_status: null,
+            showApiKeyField: false,
             filters: {
-                website: null,
-                reviews: {
-                    option: null,
-                    value: null
-                },
-                photos: {
-                    option: null,
-                    value: null
-                }
+                website: 'All',
+                reviews: 5,
+                rating: 5,
+                photos: 10
             },
             currentBusiness: {
                 business_data: {
@@ -340,7 +392,6 @@
                 locations_id: 0 
             },
             settingsAreValid: false,
-            google_places_api_key: '',
             query: '',
             queries: [],
             currentQuery: '',
@@ -352,14 +403,19 @@
                 title: '',
                 locations: ''
             },
-            view: 'finders',
+            edit_location: {},
+            view: '',
+            settings_view: 'locations',
+            locations_view: 'new',
             search: '',
             modal_message: '',
             style: {
                 leftColumn: {
                     width: '25%',
                     float: 'left',
-                    marginRight: '4%'
+                    marginRight: '1%',
+                    border: '1px solid #ccc',
+                    padding: '10px 15px'
                 },
                 rightColumn: {
                     width: '71%',
@@ -419,6 +475,19 @@
                     backgroundColor: 'rgba(0,0,0,0.4)'
                 },
                 modalDelete: {
+                    display: 'none',
+                    position: 'fixed',
+                    zIndex: 1,
+                    paddingTop: '100px',
+                    left: 0,
+                    top: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'auto',
+                    backgroundColor: 'rgb(0,0,0)',
+                    backgroundColor: 'rgba(0,0,0,0.4)'
+                },
+                deactivateModal: {
                     display: 'none',
                     position: 'fixed',
                     zIndex: 1,
@@ -499,13 +568,13 @@
             }
         },
         mounted: function(){
-            this.loadFinders()
-            this.loadLocations()
-            this.loadGooglePlacesApiKey()
+            this.getSettings()
+            // this.loadFinders()
+            // this.loadLocations()
         },
         computed: {
             finderTitle: function() {
-                return this.finder.post_title !== '' ? this.finder.post_title : 'New Lead Finder'
+                return this.finder.post_title !== '' ? this.finder.post_title : 'New Lead Scanner'
             },
             websiteUrls: function() {
                 //business that have a website
@@ -526,22 +595,64 @@
                     return business.business_data.international_phone_number.replace(/-|\s/g, '')
                 })
                 return phone_numbers.join("\n")
+            },
+            isAdministrator: function() {
+                return this.roles.includes('administrator')
             }
         },
         methods: {
-            // getQueries: function() {
-            //     let locations = this.location.split("\n")
-            //     this.queries = locations.map(location => {
-            //         return `${this.query} near ${location}`
-            //     })
-            // },
+            editLocation: function(location) {
+                this.locations_view = ''
+                this.edit_location = location
+            },
+            reviewsCount: function(business) {
+                if(business.business_data === undefined || business.business_data.reviews === undefined)
+                    return "0"
+                return business.business_data.reviews.length
+            },
+            confirmDeactivate: function() {
+                this.style.deactivateModal.display = 'block'
+            },
+            deactivateLicense: function() {
+                var url = ajaxurl+'?action=lead_finder_deactivate_license'
+                fetch(url).then((response) => {
+                    this.style.deactivateModal.display = 'none'
+                    return response.json()
+                }).then((data) => {
+                    this.license_status = ''
+                    this.view = 'activate'
+                })
+            },
+            activatePlugin: function() {
+                if(this.license_key.length == 0) {
+                    // this.flashModal("Please enter a license key.", 3)
+                    this.alert({message: "Please enter a license key.", type:"error", time: 3})
+                    return
+                }
+
+                var url = ajaxurl+'?action=lead_finder_activate_license&license_key='+this.license_key
+                fetch(url).then((response) => {
+                    return response.json()
+                }).then((data) => {
+                    if(data.license_status == 'active'){
+                        this.license_status = 'active'
+                        // this.view = 'finders'
+                        // this.loadFinders()
+                        // g.loadLocations()
+                        this.getSettings()
+                        this.alert({message: "Plugin Activated", type:"success", time: 3})
+                    } else {
+                        // this.flashModal("Error: "+data.message)
+                        this.alert({message: data.message, type: "error"})
+                    }
+                })
+            },
             copyText: function(id) {
                 let obj = document.getElementById(id)
                 obj.select()
                 document.execCommand("copy")
             },
             exportWebsites: function() {
-                console.log("show websites")
                 this.style.websitesModal.display = 'block'
             },
             cancelLeadFinder: function() {
@@ -568,12 +679,31 @@
                     this.locations = data
                 })
             },
-            loadGooglePlacesApiKey: function() {
-                var url = ajaxurl+'?action=lead_finder_get_api_key'
+            getSettings: function() {
+                var g = this
+                var url = ajaxurl+'?action=lead_finder_get_settings'
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
-                    this.google_places_api_key = data.google_places_api_key
+                    g.google_places_api_key = data.google_places_api_key
+                    g.license_status = data.license_status
+                    g.roles = data.roles
+                    if(this.license_status == 'active'){
+                        g.google_places_api_key = data.google_places_api_key
+                        if(data.google_places_api_key != true){
+                            g.view = 'google_places_api_key'
+                            // g.loadFinders()
+                            // g.loadLocations()
+                            this.alert({message: "Google API Key", text: "A Google API Key is required to run lead queries."})
+                        } else {
+                            g.view = 'finders'
+                            g.loadFinders()
+                            g.loadLocations()
+                        }
+                    } else {
+                        g.view = 'activate'
+                        this.alert({message: "ACTIVATION REQUIRED", text: "Enter a valid license key to activate the plugin."})
+                    }
                 })
             },
             loadFinder: function(item) {
@@ -620,7 +750,7 @@
                     }).then((response)=>{
                         return response.json()
                     }).then((data)=>{
-                        this.flashModal('Saved!', 2)
+                        this.alert({message:'SAVED', type: 'success', time:3})
                         this.finders = data
                     })
                 } else {
@@ -633,9 +763,12 @@
                     }).then((response)=>{
                         return response.json()
                     }).then((data)=>{
-                        this.flashModal('Saved!')
+                        // this.flashModal('Saved!')
+                        this.alert({message:'SAVED', type: 'success', time:3})
+                        // this.alert({type:'success', message:'SAVED', time:3})
                         this.finder = data
                         this.loadFinders()
+                        this.loadFinder(this.finder)
                         this.view = 'finder'
                     })
                 }
@@ -648,7 +781,8 @@
                 return txt.value;
             },
             saveLocations: function() {
-                this.flashModal("Saving locations...")
+                // this.flashModal("Saving locations...")
+                this.alert({message:'Saving locations...'})
                 var url = ajaxurl+'?action=lead_finder_save_locations';
                 fetch(url, {
                     method: 'post',
@@ -660,7 +794,15 @@
                     return response.json()
                 }).then((data)=>{
                     this.locations = data
-                    this.flashModal('<span style="color:green;font-weight:bold;">Done!<span>', 2)
+                    // this.flashModal('<span style="color:green;font-weight:bold;">Done!<span>', 2)
+                    var g = this
+                    setTimeout(function(){
+                        g.alert({message:'SAVED', type: 'success', time:2})
+                    }, 2000)
+                    this.new_location = {
+                        title: '',
+                        locations: ''
+                    }
                 })
                 return
             },
@@ -669,12 +811,14 @@
                 fetch(url, {
                     method: 'post',
                     body: JSON.stringify({
-                        google_places_api_key: this.google_places_api_key
+                        google_places_api_key: this.update_google_places_api_key
                     })
                 }).then((response)=>{
                     return response.json()
                 }).then((data)=>{
-                    this.locations = data
+                    // this.locations = data
+                    this.showApiKeyField = false
+                    this.getSettings()
                 })
                 return
             },
@@ -684,6 +828,35 @@
             },
             flashModal: function(message, time) {
                 this.modal_message = message
+                this.style.modal.display = 'block'
+                if(time !== null && time > 0){
+                    time *= 1000
+                    let g = this
+                    setTimeout(function(){
+                        g.style.modal.display = 'none'
+                    }, time)
+                }
+            },
+            alert: function({message, type, time, text}) {
+                let icon = ''
+                switch(type) {
+                    case 'success':
+                        icon = 'fa-check-circle'
+                        break;
+                    case 'error':
+                        icon = 'fa-exclamation-circle'
+                        break;
+                    default:
+                        type = 'info'
+                        icon = 'fa-info-circle'
+                }
+
+                // this.modal_message = message
+                let subtext = ''
+                if(text)
+                    subtext = `<p class="lf-alert-subtext">${text}</p>`
+
+                this.modal_message =`<div class="lf-icon-alert-modal lf-${type}"><div class="lf-alert-icon"><i class="fas ${icon}"></i></div><div class="lf-alert-message">${message}</div>${subtext}</div>`
                 this.style.modal.display = 'block'
                 if(time !== null && time > 0){
                     time *= 1000
@@ -717,13 +890,22 @@
                 })
             },
             runLeadFinder: function() {
+                if(this.query == '') {
+                    // this.flashModal('<span style="color:red;font-weight:bold;">ERROR:</span> Please enter a query to run. i.e. "Dentist near Dallas", etc.')
+                    this.alert({message:'QUERY REQUIRED', text: 'Please enter a query to run. i.e. "Dentist near Dallas", etc.', type: 'error'})
+                    return
+                }
+                    
                 //reset cancel
                 this.cancelQueries = false
 
                 //set up the queries
                 let locations = this.location.split("\n")
                 this.queries = locations.map(location => {
-                    return `${this.query} near ${location}`
+                    if(location.length > 0)
+                        return `${this.query} near ${location}`
+                    else
+                        return this.query
                 })
                 this.style.runScraperModal.display = 'block'
                 this.runNextQuery()
@@ -743,14 +925,83 @@
                     this.style.modal.display = 'none'
                 }
             },
-            download: function() {
-                var url = ajaxurl+'?action=lead_finder_download&lead_finder_ID='+this.finder.ID
-                jQuery('<form action="'+ url +'" method="post"></form>')
-		            .appendTo('body').submit().remove();
+            csvData: function() {
+                // var url = ajaxurl+'?action=lead_finder_download&lead_finder_ID='+this.finder.ID
+                // jQuery('<form action="'+ url +'" method="post"></form>')
+		        //     .appendTo('body').submit().remove();
+
+                const lines = []
+
+                //array of data table fields for csv header row
+                const fields = ["Name", "Phone", "Full Address", "Street", "City", "State", "Country", "Postal Code", "Website", "Google Places URL", "Photos", "Reviews", "Rating", "Latitude", "Longitude", "Google ID"]
+                
+                //build the string and add to lines array
+                lines.push(`"`+fields.join(`","`)+`"`)
+
+                //loop through business records and build the csv text line
+                this.businesses.map(business => {
+                    let b = business.business_data
+                    
+                    //array of carrier field values based on fields defined by data table
+                    let values = []
+
+                    let address = []
+                    b.address_components.map(item => {
+                        address[item['types'][0]] = item['long_name']
+                    })
+                    values.push(b.name)
+                    values.push(b.international_phone_number !== undefined ? b.international_phone_number.replace(/-|\s/g, '') : "")
+                    values.push(b.formatted_address)
+                    values.push(address['street_number']+' '+address['route'])
+                    values.push(address['locality'])
+                    values.push(address['administrative_area_level_1'])
+                    values.push(address['country'])
+                    values.push(address['postal_code'])
+                    values.push(b.website)
+                    values.push(b.url)
+                    values.push(b.photos !== undefined ? b.photos.length : 0)
+                    values.push(b.reviews !== undefined ? b.reviews.length : 0)
+                    values.push(b.rating || 0)
+                    values.push(b.geometry.location.lat)
+                    values.push(b.geometry.location.lng)
+                    values.push(b.place_id)
+
+                    //build the string and add to lines array
+                    lines.push(`"`+values.join(`","`)+`"`)
+                })
+
+                //build all rows of csv by joining lines array
+                let txt = lines.join("\n")
+                return txt
+            },
+            download: function(data, title) {
+                //get the records as csv
+                let txt = ""
+                if(data === undefined)
+                    txt = this.csvData()
+                else
+                    txt = data
+
+                let filename = ""
+                if(title === undefined)
+                    filename = this.finder.post_title
+                else
+                    filename = title
+
+                //generate the download
+                var element = document.createElement('a')
+                element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(txt))
+                element.setAttribute('download', `${filename}.csv`)
+                element.style.display = 'none'
+                document.body.appendChild(element)
+                element.click()
+                document.body.removeChild(element)
             },
             applyFilters: function() {
-                //website filter
-                this.businesses = this.original_businesses.filter(business => {
+                
+                let filtered_businesses = this.original_businesses.slice(0)
+                
+                filtered_businesses = filtered_businesses.filter(business => {
                     if(this.filters.website === 'Yes')
                         return business.business_data.website && business.business_data.website.length
                     else if(this.filters.website === 'No')
@@ -758,6 +1009,17 @@
                     else
                         return true
                 })
+            
+                filtered_businesses = filtered_businesses.filter(business => {
+                    return business.business_data.reviews === undefined || business.business_data.reviews.length <= this.filters.reviews
+                })
+
+                filtered_businesses = filtered_businesses.filter(business => {
+                    return business.business_data.rating <= parseInt(this.filters.rating)
+                })
+
+                this.businesses = filtered_businesses
+
             },
             confirmDelete: function() {
                 this.style.modalDelete.display = 'block'
@@ -792,18 +1054,12 @@
             'filters.website': function(newV, oldV) {
                 this.applyFilters()
             },
-            'filters.reviews.option':function(newV, oldV) {
+            'filters.reviews':function(newV, oldV) {
                 this.applyFilters()
             },
-            'filters.reviews.value':function(newV, oldV) {
+            'filters.rating':function(newV, oldV) {
                 this.applyFilters()
-            },
-            'filters.photos.option':function(newV, oldV) {
-                this.applyFilters()
-            },
-            'filters.photos.value':function(newV, oldV) {
-                this.applyFilters()
-            },
+            }
         }
     });
 })();
