@@ -98,6 +98,7 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_activate_license', array($this, 'activate_license'));
 			add_action('wp_ajax_lead_finder_deactivate_license', array($this, 'deactivate_license'));
 			add_action('wp_ajax_lead_finder_reset_options', array($this, 'reset_options'));
+			add_action('wp_ajax_lead_finder_signalwire_update', array($this, 'signalwire_update'));
 			add_menu_page(
 				'Local Lead Scanner', 
 				'Local Lead Scanner', 
@@ -245,12 +246,15 @@ class LeadFinderApi {
 		else
 			$google_places_api_key = false;
 
+		$signalwire = get_user_meta($user_id, 'signalwire', true);
+
 		header('Content-Type: application/json');
 		echo(json_encode(array(
 			'google_places_api_key' => $google_places_api_key,
 			'license_status' => $license_status,
 			'roles' => $roles,
-			'realapikey' => $real_gpapikey
+			'realapikey' => $real_gpapikey,
+			'signalwire' => $signalwire
 			// 'license_status' => 'active'
 		)));
 		die();
@@ -456,6 +460,12 @@ class LeadFinderApi {
 
 		echo "done";
 		die();
+	}
+
+	function signalwire_update() {
+		$user_id = get_current_user_id();
+		$data = json_decode(file_get_contents('php://input'), true);
+		update_user_meta($user_id, 'signalwire', $data['signalwire']);
 	}
 }
 $lfapi_obj = new LeadFinderApi();

@@ -144,7 +144,7 @@
                         </div>
                     </div>
 
-                    <div v-if="view === 'settings'">
+                    <div v-if="view === 'settings'" style="background-color:#fff;border:1px solid #ccc;padding:15px;">
                         <a v-if="isAdministrator" style="float:right;cursor:pointer;margin-left:15px;" v-on:click="confirmDeactivate">Deactivate</a>
                         <h2 style="border-bottom:1px solid #ccc;margin-bottom:10px;">Settings</h2>
                         <div style="margin-bottom:20px">
@@ -204,12 +204,23 @@
                                 </div>
 
                             </div>
+                            <div style="clear:both;"></div>
                         </div>
 
                         <div v-if="settings_view === 'phone_lookup'" style="margin-bottom:30px;">
-                            <h3>Phone Type Lookup</h3>
+                            <h3>SignalWire Phone Type Lookup</h3>
+                            <p>You can optionally enable an API to tell you if a phone number is a mobile, voip, or landline. You will need the following information from your <a href="https://signalwire.com" target="_blank">signalwire.com</a> account.</p>
 
+                            <label>Namespace</label>
+                            <input v-model="signalwire.namespace" v-bind:style="[style.input, style.inputLarge]" />
                             
+                            <label>Project ID</label>
+                            <input v-model="signalwire.project_id" v-bind:style="[style.input, style.inputLarge]" />
+                            
+                            <label>API Token</label>
+                            <input v-model="signalwire.api_token" v-bind:style="[style.input, style.inputLarge]" />
+
+                            <button v-on:click="saveSignalWireSettings" v-bind:style="style.button">Save Settings</button>
                         </div>
 
                     </div>
@@ -390,6 +401,11 @@
             finder: {
                 post_title: '',
                 locations_id: 0 
+            },
+            signalwire: {
+                namespace: '',
+                project_id: '',
+                api_token: ''
             },
             settingsAreValid: false,
             query: '',
@@ -601,6 +617,21 @@
             }
         },
         methods: {
+            saveSignalWireSettings: function() {
+                var url = ajaxurl+'?action=lead_finder_signalwire_update';
+                this.alert({message:'SAVING...'})
+                let g = this
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({
+                        signalwire: this.signalwire
+                    })
+                }).then((response)=>{
+                    return response
+                }).then((data)=>{
+                    g.alert({message:'SAVED', type: 'success', time:2, delay:1})
+                })
+            },
             editLocation: function(location) {
                 this.locations_view = ''
                 this.edit_location = location
@@ -688,6 +719,7 @@
                     g.google_places_api_key = data.google_places_api_key
                     g.license_status = data.license_status
                     g.roles = data.roles
+                    g.signalwire = data.signalwire
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
                         if(data.google_places_api_key != true){
@@ -837,7 +869,7 @@
                     }, time)
                 }
             },
-            alert: function({message, type, time, text}) {
+            alert: function({message, type, time, text, delay}) {
                 let icon = ''
                 switch(type) {
                     case 'success':
@@ -856,15 +888,23 @@
                 if(text)
                     subtext = `<p class="lf-alert-subtext">${text}</p>`
 
-                this.modal_message =`<div class="lf-icon-alert-modal lf-${type}"><div class="lf-alert-icon"><i class="fas ${icon}"></i></div><div class="lf-alert-message">${message}</div>${subtext}</div>`
-                this.style.modal.display = 'block'
-                if(time !== null && time > 0){
-                    time *= 1000
-                    let g = this
-                    setTimeout(function(){
-                        g.style.modal.display = 'none'
-                    }, time)
-                }
+                let g = this
+                if(delay != null || delay > 0)
+                    delay *= 1000
+                else
+                    delay = 1
+
+                setTimeout(function() {
+                    g.modal_message =`<div class="lf-icon-alert-modal lf-${type}"><div class="lf-alert-icon"><i class="fas ${icon}"></i></div><div class="lf-alert-message">${message}</div>${subtext}</div>`
+                    g.style.modal.display = 'block'
+                    if(time !== null && time > 0){
+                        time *= 1000
+                        // let g = this
+                        setTimeout(function(){
+                            g.style.modal.display = 'none'
+                        }, time)
+                    }
+                }, delay)
             },
             showDetails: function(business) {
                 this.currentBusiness = business
@@ -891,7 +931,6 @@
             },
             runLeadFinder: function() {
                 if(this.query == '') {
-                    // this.flashModal('<span style="color:red;font-weight:bold;">ERROR:</span> Please enter a query to run. i.e. "Dentist near Dallas", etc.')
                     this.alert({message:'QUERY REQUIRED', text: 'Please enter a query to run. i.e. "Dentist near Dallas", etc.', type: 'error'})
                     return
                 }
