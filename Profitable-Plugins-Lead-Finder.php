@@ -71,6 +71,8 @@ class gpapiscraper {
 			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
 			
 			return '
+				<link rel="preconnect" href="https://fonts.gstatic.com">
+				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
 				<script>
 					var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
 					var lf_admin_page = false
@@ -120,6 +122,8 @@ class LeadFinderApi {
 			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
 			
 			echo '
+				<link rel="preconnect" href="https://fonts.gstatic.com">
+				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
 				<div class="wrap" style="padding-right:1%">
 					<script>
 						var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
