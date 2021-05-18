@@ -1,7 +1,4 @@
 ( function() {
-    var colors = {
-        orange1: ''
-    }
     var vm = new Vue({
         el: document.querySelector('#lf-mount'),
         template: `
@@ -10,7 +7,7 @@
                     <i class="fas fa-map-marker-alt" :style="[style.brandTitleIcon]"></i>
                     Local Lead Scanner
                 </div>
-                <div v-if="lf_admin_page && isAdministrator" style="margin-top:-20px;margin-bottom:20px;">
+                <div v-if="lf_admin_page && isAdministrator" style="margin-left:20px;margin-bottom:20px;">
                     <i class="fas fa-info-circle"></i> You can optionally add the [local-lead-finder] shortcode to a page or post.
                 </div>
 
@@ -18,16 +15,16 @@
                     <h2 v-bind:style="style.heading">Activate</h2>
                     <p>Please enter your license key to register this installation. <a href="https://localleadscanner.com" target="_blank">Need a license?</a></p>
                     <input v-model="license_key" v-bind:style="[style.input, style.inputLarge]" />
-                    <button v-bind:style="[style.button, style.buttonFullWidth]" v-on:click="activatePlugin">Activate</button>
+                    <button v-bind:style="[style.btn, style.btnPrimary, style.btnNoMargin, style.btnLarge, style.btnFullWidth]" v-on:click="activatePlugin">Activate</button>
                 </div>
 
                 <div v-if="view == 'google_places_api_key'" style="max-width:700px;margin:50px auto;">
-                    <h3>API Key</h3>
+                    <h3 :style="[style.heading]">API Key</h3>
                     <label>Google Places API Key</label>
                     <input type="password" v-model="update_google_places_api_key" v-bind:style="[style.input, style.inputLarge]" />
-                    <button v-bind:style="style.button" v-on:click="saveApiKey">Save API Key</button>
+                    <button v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.btnFullWidth, style.btnNoMargin]" v-on:click="saveApiKey">Save API Key</button>
                 </div>
-                <div class="lead-finder-wrapper" v-bind:style="[style.wrapper, style.shadow]">
+                <div class="lead-finder-wrapper" v-bind:style="[style.wrapper]">
                     
                     <div v-if="view != '' && view != 'activate' && view != 'google_places_api_key'" style="display: flex;">
                         
@@ -41,7 +38,7 @@
                                 </div>
                                 <input v-model="search" v-bind:style="[style.input, style.searchInput]" placeholder="Search" autocomplete="off" />
                             </div>
-                                <h4 :style="[style.heading, style.navSubHeading]">Scanners</h4>
+                                <a :style="[style.link, style.heading, style.navSubHeading]">Scanners</a>
                                 <div v-if="loadingFinders" style="margin-left:20px;">Loading...</div>
 
                                 <!-- SCANNER NAV ITEMS -->
@@ -57,6 +54,7 @@
                                 </div>
                         </div>
 
+                        <!-- RIGHT COLUMN -->
                         <div v-bind:style="style.rightColumn">
                             <div v-bind:style="style.rightColumnContent" class="content">
 
@@ -77,6 +75,9 @@
                                                 <div style="clear:both;"></div>
                                             </div>
                                         </div>
+
+
+                                        <!-- RUN SCANNER FORM -->
                                         <div v-if="finder.ID > 0">
                                             <div style="width:39%;float:left;margin-right:2%">
                                                 <label>Query</label>
@@ -93,18 +94,61 @@
                                             </div>
                                             <div style="width:18%;float:left;">
                                                 <label>&nbsp;</label>
-                                                <button v-bind:style="[style.btn, style.btnPrimary, style.btnFullWidth]" v-on:click="runLeadFinder">Run Scanner</button>
+                                                <button v-if="currentQuery == ''" v-bind:style="[style.btn, style.btnPrimary, style.btnFullWidth]" v-on:click="runLeadFinder">Run Scanner</button>
+                                            </div>
+                                            <div style="clear:both;">
+                                                <p v-if="!cancelQueries && currentQuery != ''">
+                                                    <i class="fas fa-cog fa-spin"></i> 
+                                                    Scanning: {{currentQuery}}
+                                                </p>
+                                                <div v-if="queries.length > 0">
+                                                    <div v-for="query in queries">
+                                                        <div>
+                                                            <i class="fas fa-cog"></i> 
+                                                            {{query}}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div style="clear:both;"></div>
                                         </div>
+
+
                                         <div style="clear:both;"></div>
                                     </div>
                                 </div>
 
-
+                                <div v-if="loadingRecords">Loading...</div>
+                                
                                 <!-- SCANNER RECORDS -->
-                                <div v-if="view === 'finder'" style="margin-top:30px;">
-                                    
+                                <div v-if="view === 'finder' && businesses.length > 0" style="margin-top:30px;">
+
+                                    <!-- STATS DASHBOARD -->
+                                    <div :style="[style.record]">
+                                        <div :style="[style.dashboardWidgetIcon]">
+                                            <div :style="[style.dashboardWidgetIconContainer, style.dashboardWidgetIconBg1]"><i class="fas fa-address-book" style="opacity: 0.9"></i></div>
+                                            <div :style="[style.dashboardWidgetTitle2]">Records</div>
+                                            <div :style="[style.dashboardWidgetNumber2]">{{ original_businesses.length }}</div>
+                                        </div>
+                                        <div :style="[style.dashboardWidgetIcon, style.marginLeft1]">
+                                            <div :style="[style.dashboardWidgetIconContainer, style.dashboardWidgetIconBg2]"><i class="fas fa-mobile-alt" style="opacity: 0.9"></i></div>
+                                            <div :style="[style.dashboardWidgetTitle2]">Wireless</div>
+                                            <div :style="[style.dashboardWidgetNumber2]">{{ percentMobile }}%</div>
+                                        </div>
+                                        <div :style="[style.dashboardWidgetIcon, style.marginLeft1]">
+                                            <div :style="[style.dashboardWidgetIconContainer, style.dashboardWidgetIconBg3]"><i class="fas fa-globe" style="opacity: 0.9"></i></div>
+                                            <div :style="[style.dashboardWidgetTitle2]">Websites</div>
+                                            <div :style="[style.dashboardWidgetNumber2]">{{ percentWebsites }}%</div>
+                                        </div>
+                                        <div :style="[style.dashboardWidgetIcon, style.marginLeft1]">
+                                            <div :style="[style.dashboardWidgetIconContainer, style.dashboardWidgetIconBg4]"><i class="fas fa-thumbs-up" style="opacity: 0.9"></i></div>
+                                            <div :style="[style.dashboardWidgetTitle2]">&lt; Reviews</div>
+                                            <div :style="[style.dashboardWidgetNumber2]">{{ lowReviews }}%</div>
+                                        </div>
+                                        <div style="clear:both;"></div>
+                                    </div>
+                                        
+                                    <!-- FILTERS -->
                                     <strong>Filters:</strong> 
                                     <div style="margin-bottom:16px;">
                                         <span :style="style.filter">
@@ -160,6 +204,8 @@
                                         </a>
                                     </div>
                                     
+                                    
+
                                     <h3 :style="[style.heading, style.headingRecords]">Records <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span></h3>
                                     
                                     <!-- SCANNER RECORDS -->
@@ -177,7 +223,7 @@
                                                 <span style="margin-right:5px;">({{reviewsCount(business)}})</span>
                                                 <div class="Stars right" :style="stars(rating(business))" :label="business.business_data.rating"></div>
                                                 <div style="clear:both;"></div>
-                                                <div><a v-on:click="showDetails(business)" style="float:right;cursor:pointer;">Details</a></div>
+                                                <div><a v-on:click="showDetails(business)" :style="[style.detailsLink]">Details</a></div>
                                             </div>
                                             <div :style="[style.recordTitle]">{{business.post_title}}</div>
                                             <div :style="[style.recordText]">
@@ -195,25 +241,55 @@
                                 <!-- SETTINGS -->
                                 <div v-if="view === 'settings'">
                                     <h2 v-bind:style="[style.heading]">Settings</h2>
+
+                                    <!-- SETTINGS MENU -->
                                     <div>
-                                        <a v-on:click="settings_view = 'locations'" v-bind:style="[style.navpill]">Locations</a>
-                                        <a v-on:click="settings_view = 'phone_lookup'" v-bind:style="[style.navpill]">Phone Type Lookup</a>
-                                        <a v-on:click="settings_view = 'google_api_key'" v-bind:style="[style.navpill]">Google API Key</a>
+                                        <!-- LOCATIONS -->
+                                        <a v-if="settings_view == 'locations'" v-on:click="settings_view = 'locations'" v-bind:style="[style.navpill, style.navpillActive]">
+                                            <i class="fas fa-map-marked-alt" style="margin-right:3px;"></i>
+                                            Locations
+                                        </a>
+                                        <a v-else v-on:click="settings_view = 'locations'" v-bind:style="[style.navpill]">
+                                            <i class="fas fa-map-marked-alt" style="margin-right:3px;"></i>
+                                            Locations
+                                        </a>
+
+                                        <!-- PHONE LOOKUP -->
+                                        <a v-if="settings_view == 'phone_lookup'" v-on:click="settings_view = 'phone_lookup'" v-bind:style="[style.navpill, style.navpillActive]">
+                                            <i class="fas fa-mobile-alt" style="margin-right:3px;"></i>
+                                            Phone Type Lookup
+                                        </a>
+                                        <a v-else v-on:click="settings_view = 'phone_lookup'" v-bind:style="[style.navpill]">
+                                            <i class="fas fa-mobile-alt" style="margin-right:3px;"></i>
+                                            Phone Type Lookup
+                                        </a>
+
+                                        <!-- GOOGLE API KEY -->
+                                        <a v-if="settings_view == 'google_api_key'" v-on:click="settings_view = 'google_api_key'" v-bind:style="[style.navpill, style.navpillActive]">
+                                            <i class="fas fa-key" style="margin-right:3px;"></i>
+                                            Google API Key
+                                        </a>
+                                        <a v-else v-on:click="settings_view = 'google_api_key'" v-bind:style="[style.navpill]">
+                                            <i class="fas fa-key" style="margin-right:3px;"></i>
+                                            Google API Key
+                                        </a>
+
+                                        <!-- DEACTIVATE -->
+                                        <a v-if="isAdministrator" style="float:right;cursor:pointer;margin-left:15px;margin-right:10px;color:red;" v-on:click="confirmDeactivate">Deactivate</a>
+                                        
                                     </div>
                                     <div v-if="view === 'settings'" v-bind:style="[style.record, style.shadow]">
-                                        <a v-if="isAdministrator" style="float:right;cursor:pointer;margin-left:15px;" v-on:click="confirmDeactivate">Deactivate</a>
-                                        
                                         
                                         <!-- GOOGLE API KEY SETTINGS -->
-                                        <div v-if="settings_view === 'google_api_key'" style="margin-bottom:30px;">
-                                            <h3>API Key</h3>
+                                        <div v-if="settings_view === 'google_api_key'" style="margin-bottom:50px;padding:20px 30px;">
+                                            <h4 :style="[style.heading]">API Key</h4>
                                             <label>Google Places API Key</label>
                                             <input type="password" v-model="update_google_places_api_key" v-bind:style="[style.input, style.inputLarge]" />
-                                            <button v-bind:style="style.button" v-on:click="saveApiKey">Save API Key</button>
+                                            <button v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight, style.marginTop10]" v-on:click="saveApiKey">Save API Key</button>
                                         </div>
 
                                         <!-- LOCATIONS SETTINGS -->
-                                        <div v-if="settings_view === 'locations'" style="margin-bottom:30px;">
+                                        <div v-if="settings_view === 'locations'" style="margin-bottom:30px;padding:10px 25px 10px 0px;">
                                             
                                             <!-- LOCATIONS LEFT NAV -->
                                             <div style="width:30%;float:left; padding: 6px 0px;">
@@ -223,7 +299,10 @@
                                                 </h4>
                                                 <div :style="[style.locationsNav]">
                                                     <div v-for="item in locations">
-                                                        <a v-on:click="editLocation(item)" :style="[style.locationNavLink]">{{item.title}}</a>
+                                                        <a v-on:click="editLocation(item)" :style="[style.locationNavLink]">
+                                                            <i class="fas fa-map-marked-alt" style="margin-right:3px;"></i> 
+                                                            {{item.title}}
+                                                        </a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -237,9 +316,11 @@
                                                             <label>Title</label>
                                                             <input v-model="location.title" v-bind:style="[style.input, style.inputLarge]" />
 
-                                                            <label>Locations</label>
-                                                            <textarea v-model="location.locations" v-bind:style="[style.input, style.inputLarge, style.textarea]"></textarea>
-                                                            <div style="text-align:right;">
+                                                            <strong>Locations</strong>
+                                                            <textarea v-model="location.locations" v-bind:style="[style.input, style.inputLarge, style.textarea, style.textareaWithHelp]"></textarea>
+                                                            <div :style="[style.textareaHelp]">Localities, one per line. i.e "80920", "Dallas, TX", etc.</div>
+                                                            
+                                                            <div style="text-align:right;margin-top:10px;">
                                                                 <a v-if="confirm_delete_location !== location.index" v-on:click="confirm_delete_location = location.index" style="cursor:pointer;">Delete Location</a>
                                                                 <span v-if="confirm_delete_location === location.index">
                                                                     Are you sure? 
@@ -253,13 +334,16 @@
                                                 </div>
 
                                                 <!-- NEW LOCATION FORM -->
-                                                <div v-if="locations_view == 'new'" style="margin-bottom:40px;">
+                                                <div v-if="locations_view == 'new'">
                                                     <label>New Location Title</label>
                                                     <input v-model="new_location.title" v-bind:style="[style.input, style.inputLarge]" />
 
                                                     <label>Locations</label>
-                                                    <textarea v-model="new_location.locations" v-bind:style="[style.input, style.inputSmall, style.textarea]"></textarea>
-                                                    <button v-on:click="saveLocations" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight]">Save Location</button>
+                                                    <textarea v-model="new_location.locations"  v-bind:style="[style.input, style.inputLarge, style.textarea, style.textareaWithHelp]"></textarea>
+                                                    <div :style="[style.textareaHelp]">Localities, one per line. i.e "80920", "Dallas, TX", etc.</div>
+                                                    <div style="text-align:right;margin-top:10px;">
+                                                        <button v-on:click="saveLocations" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge]">Save Location</button>
+                                                    </div>
                                                 </div>
 
                                             </div>
@@ -267,11 +351,14 @@
                                         </div>
 
                                         <!-- SIGNAL WIRE SETTINGS -->
-                                        <div v-if="settings_view === 'phone_lookup'" style="margin-bottom:30px;">
-                                            <h3>SignalWire Phone Type Lookup</h3>
+                                        <div v-if="settings_view === 'phone_lookup'" style="margin-bottom:50px;padding:20px 30px;">
+                                            <h3 :style="[style.heading]">SignalWire Phone Type Lookup</h3>
                                             <p>You can optionally enable an API to tell you if a phone number is a mobile, voip, or landline. You will need the following information from your <a href="https://signalwire.com" target="_blank">signalwire.com</a> account.</p>
 
-                                            <div><label><input type="checkbox" v-model="signalwire.active" /> Phone Type Lookup Active</label></div>
+                                            <div style="margin:20px 0px">
+                                                <h5 :style="[style.heading]">Phone Type Lookup Active</h5>
+                                                <label><input type="checkbox" v-model="signalwire.active" /> Active</label>
+                                            </div>
 
                                             <label>Namespace</label>
                                             <input v-model="signalwire.namespace" v-bind:style="[style.input, style.inputLarge]" />
@@ -282,7 +369,7 @@
                                             <label>API Token</label>
                                             <input v-model="signalwire.api_token" v-bind:style="[style.input, style.inputLarge]" />
 
-                                            <button v-on:click="saveSignalWireSettings" v-bind:style="style.button">Save Settings</button>
+                                            <button v-on:click="saveSignalWireSettings" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight, style.marginTop20]">Save Settings</button>
                                         </div>
 
                                     </div>
@@ -298,6 +385,7 @@
                         </div>
                     </div>
                     
+                    <!-- COPY DATA MODAL -->
                     <div id="websitesModal" v-bind:style="[style.websitesModal]">
                         <div v-bind:style="[style.modalContent, style.modalContentWide, style.shadow]">
                             <span v-bind:style="style.modalClose" v-on:click="style.websitesModal.display = 'none'">&times;</span>
@@ -309,14 +397,14 @@
                                         <a v-on:click="copyText('lf_website_urls')" style="float:right;cursor:pointer;" title="Copy"><i class="fas fa-copy"></i></a>
                                         <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download(websiteUrls, finder.post_title+'-websites')" title="Download"><i class="fas fa-download"></i></a>
                                     </label>
-                                    <textarea id="lf_website_urls" :style="[style.input, style.inputLarge, style.textarea]">{{websiteUrls}}</textarea>
+                                    <textarea id="lf_website_urls" :style="[style.input, style.inputLarge, style.textarea, style.textAreaCopy]">{{websiteUrls}}</textarea>
                                 </div>
                                 <div style="width:48%;float:right;">
                                     <label style="display:block;margin-top:20px"><strong>Phone Numbers:</strong>
                                         <a v-on:click="copyText('lf_phone_numbers')" style="float:right;cursor:pointer;" title="Copy"><i class="fas fa-copy"></i></a>
                                         <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download(phoneNumbers, finder.post_title+'-phone-numbers')" title="Download"><i class="fas fa-download"></i></a>
                                     </label>
-                                    <textarea id="lf_phone_numbers" :style="[style.input, style.inputLarge, style.textarea]">{{phoneNumbers}}</textarea>
+                                    <textarea id="lf_phone_numbers" :style="[style.input, style.inputLarge, style.textarea, style.textAreaCopy]">{{phoneNumbers}}</textarea>
                                 </div>
                                 <div style="clear:both;"></div>
                             </div>
@@ -325,7 +413,7 @@
                                     <a v-on:click="copyText('lf_all_data')" style="float:right;cursor:pointer;" title="Copy"><i class="fas fa-copy"></i></a>
                                     <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download()" title="Download"><i class="fas fa-download"></i></a>
                                 </label>
-                                <textarea id="lf_all_data" :style="[style.input, style.inputLarge, style.textarea]">{{csvData()}}</textarea>
+                                <textarea id="lf_all_data" :style="[style.input, style.inputLarge, style.textarea, style.textAreaCopy]">{{csvData()}}</textarea>
                             </div>
                         </div>
                     </div>
@@ -349,8 +437,10 @@
                                     <td><p style="text-align:left;margin-top:40px;margin-bottom:30px;">Are you sure you want to deactivate this plugin and license? You can reactivate it as long has you have a license key.</p></td>
                                 </tr>
                             </table>
-                            <button v-bind:style="[style.button, style.buttonDelete]" v-on:click="deactivateLicense">Yes, Deactivate</button>
-                            <button v-bind:style="[style.button]" v-on:click="style.deactivateModal.display = 'none'">Cancel</button>
+                            <div style="text-align:center;">
+                                <button v-bind:style="[style.btn, style.btnLarge, style.btnDanger]" v-on:click="deactivateLicense">Yes, Deactivate</button>
+                                <button v-bind:style="[style.btn, style.btnLarge]" v-on:click="style.deactivateModal.display = 'none'">Cancel</button>
+                            </div>
                             <div style="clear:both;"></div>
                         </div>
                     </div>
@@ -509,6 +599,7 @@
             theme: 'default',
             colors: {
                 default: {
+                    fontFamily: "'Poppins', sans-serif",
                     leftColumn: {
                         bgColor: 'rgb(60 57 57)',
                         link: {
@@ -539,6 +630,10 @@
                     },
                     navpill: {
                         text: '#fff',
+                        background: '#999'
+                    },
+                    navpillActive: {
+                        text: '#fff',
                         background: 'rgb(236 135 11)'
                     },
                     input: {
@@ -551,7 +646,7 @@
 
                     primary: 'orange',
                     secondary: 'gray',
-                    background1: '#efefef',
+                    background1: 'rgb(234 232 232)',
                     background2: '#fff',
                     background3: '#fff',
                     background4: '#000',
@@ -572,6 +667,9 @@
                         color: '#2ea3f2' //link color
                     },
 
+                    navItem: {
+                        color: '#fff'
+                    },
                     navItemActive: {
                         color: '#fff'
                     },
@@ -579,7 +677,17 @@
                         color: 'red'
                     },
                     recordTitle: {
-                        color: '#000'
+                        color: 'rgb(95 95 95)'
+                    },
+                    recordText: {
+                        color: 'rgb(95 95 95)'
+                    },
+                    dashboardWidget: {
+                        color: '#fff',
+                        bgImage1: 'linear-gradient(60deg,rgb(255 97 97),#fb8c00)',
+                        bgImage2: 'linear-gradient(60deg,rgb(79 181 37),rgb(62 189 101))',
+                        bgImage3: 'linear-gradient(60deg,rgb(212 107 255),#e53935)',
+                        bgImage4: 'linear-gradient(60deg,rgb(28 15 228),#2ea3f2)',
                     }
 
                 },
@@ -598,6 +706,32 @@
             // this.loadLocations()
         },
         computed: {
+            percentMobile: function() {
+                let wireless = this.original_businesses.filter(business => {
+                    return business.business_data.phone_type == 'wireless'
+                })
+                if(wireless.length > 0)
+                    return (wireless.length/this.original_businesses.length*100).toFixed(0)
+                return 0
+            },
+            percentWebsites: function() {
+                let websites = this.original_businesses.filter(business => {
+                    return business.business_data.website && business.business_data.website.length
+                })
+                if(websites.length > 0)
+                    return (websites.length/this.original_businesses.length*100).toFixed(0)
+                return 0
+            },
+            lowReviews: function() {
+                let low_reviews = this.original_businesses.filter(business => {
+                    console.log("reviews:", business.business_data.reviews)
+                    return business.business_data.reviews === undefined || business.business_data.reviews.length < 5
+                })
+                console.log("low reviews total:", low_reviews.length)
+                if(low_reviews.length > 0)
+                    return (low_reviews.length/this.original_businesses.length*100).toFixed(0)
+                return 0
+            },
             finderTitle: function() {
                 return this.finder.post_title !== '' ? this.finder.post_title : 'New Lead Scanner'
             },
@@ -629,12 +763,14 @@
             setStyles: function() {
                 // this.theme = 'dark'
                 this.style = {
+                    fontWeight: 'bold',
+                    fontSize: '24px',
                     wrapper: {
                         backgroundColor: this.colors[this.theme].background1,
                         borderRadius: '25px'
                     },
                     brandTitle: {
-                        fontFamily: "'Poppins', sans-serif",
+                        fontFamily: this.colors[this.theme].fontFamily,
                         fontSize: '26px',
                         lineHeight: '0.9',
                         letterSpacing: '-2px',
@@ -658,7 +794,8 @@
                         padding: '20px'
                     },
                     leftColumnLink: {
-                        color: this.colors[this.theme].leftColumn.link.color
+                        color: this.colors[this.theme].leftColumn.link.color,
+                        textDecoration: 'none'
                     },
                     rightColumn: {
                         width: '74%',
@@ -668,22 +805,28 @@
                         padding: '20px'
                     },
                     link: {
-                        color: this.colors[this.theme].link.color,
-                        fontWeight: 'normal'
+                        fontWeight: 'normal',
+                        textDecoration: 'none'
+                    },
+                    detailsLink: {
+                        textDecoration: 'none'
                     },
                     copyDataLink: {
-                        color: this.colors[this.theme].link.color,
                         cursor: 'pointer',
-                        marginRight: '5px'
+                        marginRight: '5px',
+                        textDecoration: 'none'
                     },
                     navItem: {
-                        borderBottom: '1 px solid #ccc',
+                        // borderBottom: '1 px solid #ccc',
                         cursor: 'pointer',
                         width: '86%',
-                        margin: 'auto',
+                        margin: '1px auto',
                         display: 'block',
                         padding: '5px 10px',
                         borderRadius: '5px',
+                        textDecoration: 'none',
+                        fontSize: '14px',
+                        color: this.colors[this.theme].navItem.color,
                         
                         '--nav-color': this.colors[this.theme].navColor,
                         '--nav-background-color': this.colors[this.theme].navBackground,
@@ -693,7 +836,8 @@
                     },
                     navItemActive: {
                         fontWeight: 'bold',
-                        color: this.colors[this.theme].navItemActive.color
+                        color: this.colors[this.theme].navItemActive.color,
+                        backgroundColor: this.colors[this.theme].navBackgroundHover
                     },
                     navItemIconActive: {
                         color: this.colors[this.theme].navItemIconActive.color
@@ -721,24 +865,24 @@
                     h1: {
                         marginBottom: '30px',
                         borderBottom: '1px solid #ccc',
-                        fontFamily: "'Poppins', sans-serif",
+                        fontFamily: this.colors[this.theme].fontFamily,
                     },
                     heading: {
-                        fontFamily: "'Poppins', sans-serif",
+                        fontFamily: this.colors[this.theme].fontFamily,
                     },
                     navSubHeading: {
-                        color: this.colors[this.theme].navSubHeading.color,
                         paddingLeft: '20px',
                         textTransform: 'uppercase',
                         fontSize: '16px',
-                        margin: '5px 0px'
+                        margin: '5px 0px',
+                        color: this.colors[this.theme].navSubHeading.color
                     },
                     headingRecords: {
                         marginTop: "25px",
                         marginBottom: "-20px"
                     },
                     mainTitle: {
-                        fontFamily: 'Poppins, sans-serif',
+                        fontFamily: this.colors[this.theme].fontFamily,
                         marginTop: '30px',
                         marginBottom: '-10px',
                         marginLeft: '10px',
@@ -765,6 +909,16 @@
                     textarea: {
                         height: '100px',
                         width: '100%'
+                    },
+                    textAreaCopy: {
+                        whiteSpace: 'nowrap',
+                        overflow: 'auto'
+                    },
+                    textareaWithHelp: {
+                        marginBottom: '0px'
+                    },
+                    textareaHelp: {
+                        fontSize: '0.9em'
                     },
                     searchInput: {
                         backgroundColor: this.colors[this.theme].searchInput.background,
@@ -807,16 +961,25 @@
                         width: '100%',
                         padding: '10px 15px'
                     },
+                    btnNoMargin: {
+                        marginLeft: '0px',
+                        marginRight: '0px'
+                    },
                     navpill: {
                         color: this.colors[this.theme].navpill.text,
                         backgroundColor: this.colors[this.theme].navpill.background,
-                        borderRadius: '10px',
+                        borderRadius: '15px',
                         fontSize: '12px',
-                        fontWeight: 'bold',
-                        padding: '2px 15px'
+                        padding: '4px 15px',
+                        marginRight: '5px',
+                        textDecoration: 'none'
+                    },
+                    navpillActive: {
+                        color: this.colors[this.theme].navpillActive.text,
+                        backgroundColor: this.colors[this.theme].navpillActive.background,
                     },
                     record: {
-                        padding: '16px 18px',
+                        padding: '20px 25px',
                         border: '1px solid #e6e3e3',
                         margin: '20px 0px',
                         backgroundColor: this.colors[this.theme].background3,
@@ -939,9 +1102,88 @@
                     },
                     recordText: {
                         lineHeight: '1.4em',
-                        marginTop: '4px'
-                    }
+                        marginTop: '4px',
+                        color: this.colors[this.theme].recordText.color
+                    },
+                    marginTop10: {
+                        marginTop: '10px'
+                    },
+                    marginTop20: {
+                        marginTop: '20px'
+                    },
+                    marginLeft1: {
+                        marginLeft: '1%'
+                    },
+                    dashboardWidget: {
+                        color: this.colors[this.theme].dashboardWidget.color,
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage1,
+                        borderRadius: '15px',
+                        textAlign: 'center',
+                        padding: '20px',
+                        width: '24%',
+                        float: 'left'
+                    },
+                    dashboardWidget2: {
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage2
+                    },
+                    dashboardWidget3: {
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage3
+                    },
+                    dashboardWidget4: {
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage4
+                    },
+                    dashboardWidgetNumber: {
+                        fontSize: '58px',
+                        fontWeight: 'bold',
+                        fontFamily: this.colors[this.theme].fontFamily,
+                        lineHeight: '1em',
+                        letterSpacing: '-3px'
+                    },
+                    dashboardWidgetTitle: {
+                        fontWeight: 'bold'
+                    },
+                    dashboardWidgetIcon: {
+                        width: '24%',
+                        float: 'left'
+                    },
+                    dashboardWidgetIconContainer: {
+                        color: '#fff',
+                        width: '75px',
+                        height: '75px',
+                        lineHeight: '75px',
+                        borderRadius: '10px',
+                        fontSize: '36px',
+                        textAlign: 'center',
+                        float: 'left'
+                    },
+                    dashboardWidgetIconBg1: {
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage1,
+                    },
+                    dashboardWidgetIconBg2: {
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage2,
+                    },
+                    dashboardWidgetIconBg3: {
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage3,
+                    },
+                    dashboardWidgetIconBg4: {
+                        backgroundImage: this.colors[this.theme].dashboardWidget.bgImage4,
+                    },
+                    dashboardWidgetNumber2: {
+                        marginLeft: '85px',
+                        fontWeight: 'bold',
+                        fontSize: '24px',
+                        fontFamily: this.colors[this.theme].fontFamily,
+                    },
+                    dashboardWidgetTitle2: {
+                        marginLeft: '85px',
+                        fontWeight: 'bold',
+                        fontSize: '14px',
+                        fontFamily: this.colors[this.theme].fontFamily,
+                    },
                 }
+            },
+            navpillActive: function(view){
+                return this.settings_view == view ? 'navpillActive' : 'active'
             },
             saveSignalWireSettings: function() {
                 var url = ajaxurl+'?action=lead_finder_signalwire_update';
@@ -1276,7 +1518,7 @@
                     else
                         return this.query
                 })
-                this.style.runScraperModal.display = 'block'
+                // this.style.runScraperModal.display = 'block'
                 this.runNextQuery()
                 return
             },
