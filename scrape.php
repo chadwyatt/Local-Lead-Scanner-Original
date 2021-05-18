@@ -88,6 +88,14 @@ function run_scraper($pagetoken = ''){
 }
 
 function get_details($b){
+
+	//check status not cancelled
+	$cancelled = get_post_meta($_REQUEST['post_ID'], 'cancel', true);
+	if($cancelled == true) {
+		update_post_meta($_REQUEST['post_ID'], 'cancel', false);
+		die();
+	}
+
 	$url = sprintf('https://maps.googleapis.com/maps/api/place/details/json?reference=%s&sensor=false&key=%s', $b['reference'], APIKEY);
 	$result = curl_operation($url);
 	$business = json_decode($result, 1);

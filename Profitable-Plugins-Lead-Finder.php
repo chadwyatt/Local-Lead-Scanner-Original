@@ -72,7 +72,7 @@ class gpapiscraper {
 			
 			return '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
-				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
+				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700&display=swap" rel="stylesheet">
 				<script>
 					var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
 					var lf_admin_page = false
@@ -102,6 +102,7 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_deactivate_license', array($this, 'deactivate_license'));
 			add_action('wp_ajax_lead_finder_reset_options', array($this, 'reset_options'));
 			add_action('wp_ajax_lead_finder_signalwire_update', array($this, 'signalwire_update'));
+			add_action('wp_ajax_lead_finder_cancel', array($this, 'cancel_queries'));
 		});
 		add_action('admin_menu', function() {
 			add_menu_page(
@@ -125,7 +126,7 @@ class LeadFinderApi {
 			
 			echo '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
-				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
+				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700&display=swap" rel="stylesheet">
 				<div class="wrap" style="padding-right:1%">
 					<script>
 						var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
@@ -475,6 +476,11 @@ class LeadFinderApi {
 		$user_id = get_current_user_id();
 		$data = json_decode(file_get_contents('php://input'), true);
 		update_user_meta($user_id, 'signalwire', $data['signalwire']);
+	}
+
+	function cancel_queries() {
+		update_post_meta($_REQUEST['ID'], 'cancel', true);
+		die();
 	}
 }
 $lfapi_obj = new LeadFinderApi();
