@@ -15,7 +15,7 @@ class Plugin {
 	 *
 	 * @var      string
 	 */
-	protected $plugin_slug = 'local-lead-scanner';
+	protected $plugin_slug = 'Local-Lead-Scanner';
 
 	/**
 	 * Instance of this class.
