@@ -3,13 +3,15 @@
         el: document.querySelector('#lf-mount'),
         template: `
             <div>
+                <div v-if="lf_admin_page && isAdministrator" style="margin-right:20px;float:right;display:inline;">
+                    <i class="fas fa-info-circle"></i> You can optionally add the <strong>[local-lead-finder]</strong> shortcode to a page or post.
+                </div>
                 <div v-bind:style="style.brandTitle">
                     <i class="fas fa-map-marker-alt" :style="[style.brandTitleIcon]"></i>
                     Local Lead Scanner
                 </div>
-                <div v-if="lf_admin_page && isAdministrator" style="margin-left:20px;margin-bottom:20px;">
-                    <i class="fas fa-info-circle"></i> You can optionally add the [local-lead-finder] shortcode to a page or post.
-                </div>
+                <div style="clear:both;"></div>
+                
 
                 <div v-if="view == 'activate'" style="max-width:700px;margin:50px auto;">
                     <h2 v-bind:style="style.heading">Activate</h2>
@@ -84,7 +86,7 @@
                                                 <input v-model="query" v-bind:style="[style.input, style.inputLarge]" />
                                             </div>
                                             <div style="width:39%; float:left;">
-                                                <label>Locations</label>
+                                                <label>Locations  <a style="font-size:.7em;" v-on:click="view = 'settings'; settings_view = 'locations';">EDIT</a></label>
                                                 <select label="Locations" v-model="location" :items="finder.locations" v-bind:style="[style.input, style.inputLarge]">
                                                     <option value="">Select location (optional)</option>
                                                     <option v-for="location in locations" v-bind:value="location.locations">
@@ -95,17 +97,19 @@
                                             <div style="width:18%;float:left;">
                                                 <label>&nbsp;</label>
                                                 <button v-if="currentQuery == ''" v-bind:style="[style.btn, style.btnPrimary, style.btnFullWidth]" v-on:click="runLeadFinder">Run Scanner</button>
+                                                <button v-else v-bind:style="[style.btn, style.btnDanger, style.btnFullWidth]" v-on:click="cancelLeadFinder()">Stop</button>
                                             </div>
                                             <div style="clear:both;">
-                                                <p v-if="!cancelQueries && currentQuery != ''">
+                                                <p v-if="currentQuery != ''">
                                                     <i class="fas fa-cog fa-spin"></i> 
-                                                    Scanning: {{currentQuery}}
+                                                    <span style="font-weight:bold;color:#3ebd65;">Scanning: {{currentQuery}}</span>
+                                                    <span v-if="cancelQueries" style="font-weight:bold;margin-left:5px;">[Cancelling]</span>
                                                 </p>
                                                 <div v-if="queries.length > 0">
                                                     <div v-for="query in queries">
                                                         <div>
                                                             <i class="fas fa-cog"></i> 
-                                                            {{query}}
+                                                            Pending: {{query}}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -124,7 +128,7 @@
                                 <div v-if="view === 'finder' && businesses.length > 0" style="margin-top:30px;">
 
                                     <!-- STATS DASHBOARD -->
-                                    <div :style="[style.record]">
+                                    <div :style="[style.record, style.shadow]">
                                         <div :style="[style.dashboardWidgetIcon]">
                                             <div :style="[style.dashboardWidgetIconContainer, style.dashboardWidgetIconBg1]"><i class="fas fa-address-book" style="opacity: 0.9"></i></div>
                                             <div :style="[style.dashboardWidgetTitle2]">Records</div>
@@ -142,7 +146,7 @@
                                         </div>
                                         <div :style="[style.dashboardWidgetIcon, style.marginLeft1]">
                                             <div :style="[style.dashboardWidgetIconContainer, style.dashboardWidgetIconBg4]"><i class="fas fa-thumbs-up" style="opacity: 0.9"></i></div>
-                                            <div :style="[style.dashboardWidgetTitle2]">&lt; Reviews</div>
+                                            <div :style="[style.dashboardWidgetTitle2]">&lt; 5 Reviews</div>
                                             <div :style="[style.dashboardWidgetNumber2]">{{ lowReviews }}%</div>
                                         </div>
                                         <div style="clear:both;"></div>
@@ -421,9 +425,16 @@
                     <div id="deleteModal" v-bind:style="style.modalDelete">
                         <div v-bind:style="style.modalContent">
                             <span v-bind:style="style.modalClose" v-on:click="style.modalDelete.display = 'none'">&times;</span>
-                            <p style="text-align:center;margin-top:40px;margin-bottom:30px;">Are you sure you want to delete this?</p>
-                            <button v-bind:style="[style.button, style.buttonDelete]" v-on:click="deleteLeadFinder">Yes, Delete</button>
-                            <button v-bind:style="[style.button]" v-on:click="style.modalDelete.display = 'none'">Cancel</button>
+                            <table style="border:none;">
+                                <tr>
+                                    <td style="padding:0;"><i class="fas fa-exclamation-circle" style="margin-left:15px;font-size:4em;color:red;"></i></td>
+                                    <td><p style="text-align:left;margin-top:40px;margin-bottom:30px;">Are you sure you want to delete this?</p></td>
+                                </tr>
+                            </table>
+                            <div style="text-align:center;">
+                                <button v-bind:style="[style.btn, style.btnLarge]" v-on:click="style.modalDelete.display = 'none'">Cancel</button>
+                                <button v-bind:style="[style.btn, style.btnDanger, style.btnLarge]" v-on:click="deleteLeadFinder">Yes, Delete</button>
+                            </div>
                             <div style="clear:both;"></div>
                         </div>
                     </div>
@@ -462,7 +473,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <button v-bind:style="[style.button, style.buttonDelete]" v-on:click="cancelLeadFinder()">Stop</button>
+                            <button v-bind:style="[style.btn, style.btnDanger]" v-on:click="cancelLeadFinder()">Stop</button>
                             <div style="clear:both;"></div>
                         </div>
                     </div>
@@ -539,6 +550,7 @@
             </div>
         `,
         data: {
+            // scannerRunning: false,
             license_key: '',
             roles: [],
             loadingFinders: false,
@@ -668,7 +680,7 @@
                     },
 
                     navItem: {
-                        color: '#fff'
+                        color: '#fff',
                     },
                     navItemActive: {
                         color: '#fff'
@@ -724,10 +736,8 @@
             },
             lowReviews: function() {
                 let low_reviews = this.original_businesses.filter(business => {
-                    console.log("reviews:", business.business_data.reviews)
                     return business.business_data.reviews === undefined || business.business_data.reviews.length < 5
                 })
-                console.log("low reviews total:", low_reviews.length)
                 if(low_reviews.length > 0)
                     return (low_reviews.length/this.original_businesses.length*100).toFixed(0)
                 return 0
@@ -771,6 +781,7 @@
                     },
                     brandTitle: {
                         fontFamily: this.colors[this.theme].fontFamily,
+                        fontWeight: '700',
                         fontSize: '26px',
                         lineHeight: '0.9',
                         letterSpacing: '-2px',
@@ -809,7 +820,8 @@
                         textDecoration: 'none'
                     },
                     detailsLink: {
-                        textDecoration: 'none'
+                        textDecoration: 'none',
+
                     },
                     copyDataLink: {
                         cursor: 'pointer',
@@ -817,7 +829,6 @@
                         textDecoration: 'none'
                     },
                     navItem: {
-                        // borderBottom: '1 px solid #ccc',
                         cursor: 'pointer',
                         width: '86%',
                         margin: '1px auto',
@@ -825,8 +836,10 @@
                         padding: '5px 10px',
                         borderRadius: '5px',
                         textDecoration: 'none',
-                        fontSize: '14px',
+                        fontSize: '13px',
                         color: this.colors[this.theme].navItem.color,
+                        fontFamily: this.colors[this.theme].fontFamily,
+                        fontWeight: '700',
                         
                         '--nav-color': this.colors[this.theme].navColor,
                         '--nav-background-color': this.colors[this.theme].navBackground,
@@ -869,6 +882,7 @@
                     },
                     heading: {
                         fontFamily: this.colors[this.theme].fontFamily,
+                        fontWeight: '700'
                     },
                     navSubHeading: {
                         paddingLeft: '20px',
@@ -896,11 +910,9 @@
                         backgroundColor: this.colors[this.theme].input.background
                     },
                     inputLarge: {
-                        fontSize: '1.5em',
-                        padding: '10px 15px'
-                    },
-                    inputLarge: {
-                        padding: '10px 15px'
+                        // fontSize: '1.5em',
+                        padding: '10px 15px',
+                        lineHeight: 'unset'
                     },
                     inputSmall: {
                         width: 'auto',
@@ -933,7 +945,8 @@
                         border: 'none',
                         fontWeight: 'bold',
                         cursor: 'pointer',
-                        borderRadius: '4px'
+                        borderRadius: '4px',
+                        lineHeight: 'unset'
                     },
                     btnLarge: {
                         padding: '10px 25px'
@@ -1178,6 +1191,7 @@
                         marginLeft: '85px',
                         fontWeight: 'bold',
                         fontSize: '14px',
+                        marginTop: '11px',
                         fontFamily: this.colors[this.theme].fontFamily,
                     },
                 }
@@ -1259,7 +1273,17 @@
                 this.style.websitesModal.display = 'block'
             },
             cancelLeadFinder: function() {
+                var g = this
                 this.cancelQueries = true
+                this.queries = []
+
+                var url = ajaxurl+'?action=lead_finder_cancel&ID='+this.finder.ID
+                fetch(url).then((response)=>{
+                    return response
+                }).then((data)=>{
+                    g.cancelQueries = false
+                    g.loadFinder(this.finder)            
+                })
             },
             loadFinders: function() {
                 this.loadingFinders = true
@@ -1311,6 +1335,12 @@
                 })
             },
             loadFinder: function(item) {
+                if(this.queries.length > 0){
+                    this.alert({message:"Scanner is Running", text:"Unable to load another scanner while one is running", type:"error", time:5})
+                    return
+                }
+
+
                 this.loadingRecords = true
                 this.view = 'finder'
                 this.finder = item
@@ -1354,7 +1384,7 @@
                     }).then((response)=>{
                         return response.json()
                     }).then((data)=>{
-                        this.alert({message:'SAVED', type: 'success', time:3})
+                        this.alert({message:'SAVED', type: 'success', time:1})
                         this.finders = data
                     })
                 } else {
@@ -1368,7 +1398,7 @@
                         return response.json()
                     }).then((data)=>{
                         // this.flashModal('Saved!')
-                        this.alert({message:'SAVED', type: 'success', time:3})
+                        this.alert({message:'SAVED', type: 'success', time:1})
                         // this.alert({type:'success', message:'SAVED', time:3})
                         this.finder = data
                         this.loadFinders()
@@ -1509,6 +1539,7 @@
                     
                 //reset cancel
                 this.cancelQueries = false
+                // this.scannerRunning = true
 
                 //set up the queries
                 let locations = this.location.split("\n")
@@ -1544,7 +1575,7 @@
                 const lines = []
 
                 //array of data table fields for csv header row
-                const fields = ["Name", "Phone", "Phone Type", "Full Address", "Street", "City", "State", "Country", "Postal Code", "Website", "Google Places URL", "Photos", "Reviews", "Rating", "Latitude", "Longitude", "Google ID"]
+                const fields = ["Name", "Phone", "Phone Type", "Full Address", "Street", "City", "State", "Country", "Postal Code", "Website", "Google Places URL", "Photos", "Reviews", "Rating", "Latitude", "Longitude", "Business Types", "Status", "Google ID"]
                 
                 //build the string and add to lines array
                 lines.push(`"`+fields.join(`","`)+`"`)
@@ -1576,6 +1607,8 @@
                     values.push(b.rating || 0)
                     values.push(b.geometry.location.lat)
                     values.push(b.geometry.location.lng)
+                    values.push(b.types.join(", "))
+                    values.push(b.business_status)
                     values.push(b.place_id)
 
                     //build the string and add to lines array
