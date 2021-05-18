@@ -102,6 +102,8 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_deactivate_license', array($this, 'deactivate_license'));
 			add_action('wp_ajax_lead_finder_reset_options', array($this, 'reset_options'));
 			add_action('wp_ajax_lead_finder_signalwire_update', array($this, 'signalwire_update'));
+		});
+		add_action('admin_menu', function() {
 			add_menu_page(
 				'Local Lead Scanner', 
 				'Local Lead Scanner', 
@@ -388,15 +390,16 @@ class LeadFinderApi {
             'license_key' => $license_key,
             'registered_domain' => $_SERVER['SERVER_NAME'],
             'item_reference' => urlencode('local-lead-scanner'),
+			'random' => uniqid()
         );
 
         // Send query to the license manager server
         $query = esc_url_raw(add_query_arg($api_params, 'https://localleadscanner.com'));
         $response = wp_remote_get($query, array('timeout' => 20, 'sslverify' => false));
 		
+		// print_r($response['body']);
 		// License data.
 		$license_data = json_decode(wp_remote_retrieve_body($response));
-
         // Check for error in the response
         // if (is_wp_error($response)){
         //     echo "Unexpected Error! The query returned with an error.";
