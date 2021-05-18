@@ -1335,16 +1335,17 @@
                 })
             },
             loadFinder: function(item) {
-                if(this.queries.length > 0){
+                if(this.queries.length > 0 && item.ID !== this.finder.ID){
                     this.alert({message:"Scanner is Running", text:"Unable to load another scanner while one is running", type:"error", time:5})
                     return
                 }
 
-
-                this.loadingRecords = true
+                if(item.ID !== this.finder.ID)
+                    this.loadingRecords = true
+    
                 this.view = 'finder'
                 this.finder = item
-                this.businesses = []
+                // this.businesses = []
                 // var url = '/wp-json/lead_finder/records/'+item.ID;
                 var url = ajaxurl+'?action=lead_finder_records&ID='+item.ID
                 fetch(url)
