@@ -4,7 +4,7 @@
         template: `
             <div>
                 <div v-if="lf_admin_page && isAdministrator" style="margin-right:20px;float:right;display:inline;">
-                    <i class="fas fa-info-circle"></i> You can optionally add the <strong>[local-lead-finder]</strong> shortcode to a page or post.
+                    <i class="fas fa-info-circle"></i> You can optionally add the <strong>[local-lead-scanner]</strong> shortcode to a page or post.
                 </div>
                 <div v-bind:style="style.brandTitle">
                     <i class="fas fa-map-marker-alt" :style="[style.brandTitleIcon]"></i>

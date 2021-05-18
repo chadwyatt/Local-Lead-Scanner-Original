@@ -2,7 +2,7 @@
 /* 
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
-Description: Query the google places api for business leads. To install, add the [local-lead-finder] shortcode to a page or post.
+Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
 Version: 1.0.0
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
