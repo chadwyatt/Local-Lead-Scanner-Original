@@ -1,21 +1,21 @@
 <?php   
 /* 
-Plugin Name: Profitable Plugins Leader Finder
-Plugin URI: https://profitableplugins.com
-Description: Query the google places api for business leads.
-Version: 1.2.1
-Author: Profitable Plugins
-Author URI: https://profitableplugins.com
+Plugin Name: Local Lead Scanner
+Plugin URI: https://localleadscanner.com
+Description: Query the google places api for business leads. To install, add the [local-lead-finder] shortcode to a page or post.
+Version: 1.0.0
+Author: Local Lead Scanner
+Author URI: https://localleadscanner.com
 */
 
-namespace ProfitablePlugins\LeadFinder;
+namespace LocalLeadScanner;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'PROFITABLE_PLUGINS_LEAD_FINDER_VERSION', '1.2.1' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.0' );
 
 
 spl_autoload_register(function ($class) {
@@ -51,139 +51,35 @@ class gpapiscraper {
 	
 	public static function init(){
 		$plugin = Plugin::get_instance();
-		gpapiscraper::register_gpapiscraper();
-
 		$updater = Updater::get_instance();
 		$updater->set_file(__FILE__);
 		$updater->initialize();
-
 		gpapiscraper::frontend();
 	}
-	
-	public static function admin_init(){
-		add_meta_box("meta_scraper", "Scraper", "ProfitablePlugins\LeadFinder\gpapiscraper::meta_scraper", "gpapiscraper", "normal", "low");
-		//add_meta_box("meta_audio", "Audio Settings", "painless::meta_audio", "painless_call", "normal", "low");
-		//add_meta_box("meta_phone_numbers", "Phone Numbers/Dial", "painless::meta_phone_numbers", "painless_call", "normal", "low");
-	}
-	
-	public static function admin_menu() {
-		//add_submenu_page('options-general.php', 'PainlessCalls', 'PainlessCalls', 'administrator', 'painless_options', 'painless::options_page');
-	}
-	
-	public static function options_page(){
-		return;
-		wp_enqueue_script('jquery');
-		wp_enqueue_script('jquery-ui-datepicker');
-		//wp_enqueue_script('jquery-ui-dialog');
-		wp_register_style('smoothness-css', 'https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.5/themes/smoothness/jquery-ui.css?ver=3.4.2');
-		wp_enqueue_style('smoothness-css');
-		include("options_page.php");
-	}
-	
-	public static function register_gpapiscraper(){
 		
-		$labels = array(
-			'name' => _x('Lead Finder', 'post type general name'),
-			'singular_name' => _x('Lead Finder', 'post type singular name'),
-			'add_new' => _x('Add New', 'Lead Finder item'),
-			'add_new_item' => __('Add New Lead Finder'),
-			'edit_item' => __('Edit Lead Finder'),
-			'new_item' => __('New Lead Finder'),
-			'view_item' => __('View Lead Finder'),
-			'search_items' => __('Search Lead Finders'),
-			'not_found' =>  __('Nothing found'),
-			'not_found_in_trash' => __('Nothing found in Trash'),
-			'parent_item_colon' => ''
-			
-		);
-		
-		$args = array(
-			'labels' => $labels,
-			'public' => true,
-			'publicly_queryable' => false,
-			'show_ui' => true,
-			'query_var' => true,
-			//'menu_icon' => plugins_url( 'images/icon_star.png' , __FILE__ ),
-			'rewrite' => false,
-			'capability_type' => 'post',
-			'hierarchical' => false,
-			//'menu_position' => 25,
-			'supports' => array('title'),
-			'show_in_rest' => true
-			); 
-		
-		register_post_type( 'gpapiscraper' , $args );
-		
-	}
-	
-	public static function meta_scraper(){
-		include(dirname(__FILE__)."/meta_scraper.php");
-	}
-	
-	public static function save_post($post_id){
-		//return $post_id;
-		$post_id = $_POST["post_ID"];
-		if ($_POST["post_type"] != 'gpapiscraper')
-			return $post_id;
-		if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) 
-			return $post_id;
-		if ( !current_user_can( 'edit_post', $post_id ) )
-			return $post_id;
-		
-		update_post_meta($post_id, '_gpapiscraper_results', $_POST["gpapiscraper_results"] );
-		
-		return $post_id;
-	}
-	
-	public static function user_fields( $user ) { 
-		//if ( current_user_can( 'administrator', $user->ID ) )
-			include(dirname(__FILE__)."/user_fields.php");
-	}
-	
-	public static function update_user_fields( $user_id ) {
-		//die( "testing!!!!!!!!!!!!" );
-		//if ( !current_user_can( 'edit_user', $user_id ) && !current_user_can('administrator') )
-		//	return false;
-		
-		update_usermeta( $user_id, 'gpapiscraper_google_key', trim($_POST['gpapiscraper_google_key']) );
-	}
-	
 	public static function scrape(){
 		include(dirname(__FILE__)."/scrape.php");
 		die();
 	}
 
 	function frontend(){
-		add_shortcode('lead-finder', function($attr){
+		add_shortcode('local-lead-scanner', function($attr){
 			wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
 			wp_enqueue_script( 'vuejs' );
-			// wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', [], '1.0.3', true);
 			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
 			wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
 			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
-			// wp_enqueue_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css');
+			
 			return '
+				<link rel="preconnect" href="https://fonts.gstatic.com">
+				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700&display=swap" rel="stylesheet">
 				<script>
 					var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
+					var lf_admin_page = false
 				</script>
-				<div id="mount"></div>
+				<div id="lf-mount"></div>
 			';
 		});
-	}
-
-	function test($request) {
-		$person->fname  = "Chad";
-		$person->lname = "Wyatt";
-		
-		$obj->name = "person";
-		$obj->id = "123";
-		$obj->attr = array("color" => "Red", "width" => 25);
-		$obj->person = $person;
-		return new \WP_REST_Response( $obj, 200 );
-	}
-
-	function scrape2() {
-		return;
 	}
 }
 
@@ -197,10 +93,48 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_records', array($this, 'records'));
 			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
-			add_action('wp_ajax_lead_finder_get_api_key', array($this, 'get_api_key'));
+			add_action('wp_ajax_lead_finder_get_settings', array($this, 'get_settings'));
 			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
 			add_action('wp_ajax_lead_finder_download', array($this, 'download'));
+			add_action('wp_ajax_lead_finder_create_key_test', array($this, 'create_key_test'));
+			add_action('wp_ajax_lead_finder_check_key_test', array($this, 'check_key_test'));
+			add_action('wp_ajax_lead_finder_activate_license', array($this, 'activate_license'));
+			add_action('wp_ajax_lead_finder_deactivate_license', array($this, 'deactivate_license'));
+			add_action('wp_ajax_lead_finder_reset_options', array($this, 'reset_options'));
+			add_action('wp_ajax_lead_finder_signalwire_update', array($this, 'signalwire_update'));
+			add_action('wp_ajax_lead_finder_cancel', array($this, 'cancel_queries'));
 		});
+		add_action('admin_menu', function() {
+			add_menu_page(
+				'Local Lead Scanner', 
+				'Local Lead Scanner', 
+				'read', 
+				'local-lead-scanner', 
+				array( $this, 'display_plugin_admin_page' ),
+				'dashicons-visibility',
+				20
+			);
+		});
+	}
+
+	public function display_plugin_admin_page() {
+		wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
+			wp_enqueue_script( 'vuejs' );
+			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
+			wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
+			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
+			
+			echo '
+				<link rel="preconnect" href="https://fonts.gstatic.com">
+				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700&display=swap" rel="stylesheet">
+				<div class="wrap" style="padding-right:1%">
+					<script>
+						var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
+						var lf_admin_page = true
+					</script>
+					<div id="lf-mount"></div>
+				</div>
+			';
 	}
 
 	function get_finders() {
@@ -283,6 +217,8 @@ class LeadFinderApi {
 	function get_locations() {
 		$user_id = get_current_user_id();
 		$locations = get_user_meta($user_id, 'lead_finder_locations', true);
+		if($locations === '')
+			$locations = [];
 
 		$title = array_column($locations, 'title');
 		array_multisort($title, SORT_ASC, $locations);
@@ -305,11 +241,31 @@ class LeadFinderApi {
 		die();
 	}
 
-	function get_api_key() {
+	function get_settings() {
 		$user_id = get_current_user_id();
-		$key = esc_attr( get_user_meta( $user_id, 'gpapiscraper_google_key', true ) );
+		$license_key = get_option('lead_finder_license_key', '');
+		$license_status = get_option('lead_finder_license_status', '');
+		$user = wp_get_current_user();
+ 		$roles = ( array ) $user->roles;
+		
+		$google_places_api_key = esc_attr( get_user_meta( $user_id, 'gpapiscraper_google_key', true ) );
+		$real_gpapikey = $google_places_api_key;
+		if($google_places_api_key !== '')
+			$google_places_api_key = true;
+		else
+			$google_places_api_key = false;
+
+		$signalwire = get_user_meta($user_id, 'signalwire', true);
+
 		header('Content-Type: application/json');
-		echo(json_encode(array('google_places_api_key' => $key)));
+		echo(json_encode(array(
+			'google_places_api_key' => $google_places_api_key,
+			'license_status' => $license_status,
+			'roles' => $roles,
+			'realapikey' => $real_gpapikey,
+			'signalwire' => $signalwire
+			// 'license_status' => 'active'
+		)));
 		die();
 	}
 
@@ -380,21 +336,154 @@ class LeadFinderApi {
 		echo $txt;
 		die();
 	}
+
+	function create_key_test() {
+		$api_params = array(
+			'slm_action' => 'slm_create_new',
+			'secret_key' => '609dadd4005db3.09811485',
+			'first_name' => '',
+			'last_name' => '',
+			'email' => '',
+			'company_name' => '',
+			'txn_id' => uniqid(),
+			'max_allowed_domains' => '2',
+			'date_created' => date(“Y-m-d”),
+			'date_expiry' => ’’,
+		);
+
+		print_r($api_params);
+		echo "\n=====\n";
+		// Send query to the license manager server
+		$response = wp_remote_get(add_query_arg($api_params, 'https://localleadscanner.com'), array('timeout' => 20, 'sslverify' => false));
+		
+		// Check for error in the response
+		if (is_wp_error($response)){
+			echo "Unexpected Error! The query returned with an error.";
+		}
+		
+		// License data.
+		$license_data = json_decode(wp_remote_retrieve_body($response));
+
+		print_r($license_data);
+		die();
+	}
+
+	function check_key_test() {
+		$api_params = array(
+			'slm_action' => 'slm_check',
+			'secret_key' => '609dadd4005e09.13239205',
+			// 'license_key' => '609db4b4ef04e',
+			'license_key' => '609db937bb899',
+		);
+		// Send query to the license manager server
+		$response = wp_remote_get(add_query_arg($api_params, 'https://localleadscanner.com'), array('timeout' => 20, 'sslverify' => false));
+		print_r(json_decode($response['body']));
+		die("ok");
+	}
+
+	function activate_license() {
+		$license_key = $_REQUEST['license_key'];
+		
+        // API query parameters
+        $api_params = array(
+            'slm_action' => 'slm_activate',
+            'secret_key' => '609dadd4005e09.13239205',
+            'license_key' => $license_key,
+            'registered_domain' => $_SERVER['SERVER_NAME'],
+            'item_reference' => urlencode('local-lead-scanner'),
+			'random' => uniqid()
+        );
+
+        // Send query to the license manager server
+        $query = esc_url_raw(add_query_arg($api_params, 'https://localleadscanner.com'));
+        $response = wp_remote_get($query, array('timeout' => 20, 'sslverify' => false));
+		
+		// print_r($response['body']);
+		// License data.
+		$license_data = json_decode(wp_remote_retrieve_body($response));
+        // Check for error in the response
+        // if (is_wp_error($response)){
+        //     echo "Unexpected Error! The query returned with an error.";
+        // }
+
+        if($license_data->result == 'success'){//Success was returned for the license activation
+            //Save the license key in the options table
+            update_option('lead_finder_license_key', $license_key);
+            update_option('lead_finder_license_status', 'active');
+			$result = array(
+				'license_status' => 'active'
+			);	
+        } else {
+            //Show error to the user. Probably entered incorrect license key.            
+            //Uncomment the followng line to see the message that returned from the license server
+            // echo '<br />The following message was returned from the server: '.$license_data->message;
+			$result = array(
+				'license_status' => '',
+				'message' => $license_data->message
+			);
+        }
+		header('Content-Type: application/json');
+		echo(json_encode($result));
+		die();
+	}
+
+	
+	function deactivate_license() {
+		if(!current_user_can('administrator'))
+			die('not authorized');
+
+		$license_key = get_option('lead_finder_license_key');
+		
+        // API query parameters
+        $api_params = array(
+            'slm_action' => 'slm_deactivate',
+            'secret_key' => '609dadd4005e09.13239205',
+            'license_key' => $license_key,
+            'registered_domain' => $_SERVER['SERVER_NAME'],
+        );
+
+        // Send query to the license manager server
+        $query = esc_url_raw(add_query_arg($api_params, 'https://localleadscanner.com'));
+        $response = wp_remote_get($query, array('timeout' => 20, 'sslverify' => false));
+		
+		// License data.
+		$result = json_decode(wp_remote_retrieve_body($response));
+		// print_r($license_data);
+
+		delete_option('lead_finder_license_key', $license_key);
+		delete_option('lead_finder_license_status', 'active');
+
+		header('Content-Type: application/json');
+		echo(json_encode($result));
+		die();
+	}
+
+	function reset_options() {
+		if(!current_user_can('administrator'))
+			die('not authorized');
+	
+		$user_id = get_current_user_id();
+		delete_option('lead_finder_license_key', $license_key);
+		delete_option('lead_finder_license_status', 'active');
+		delete_user_meta($user_id, 'gpapiscraper_google_key');
+		delete_user_meta($user_id, 'lead_finder_locations');
+
+		echo "done";
+		die();
+	}
+
+	function signalwire_update() {
+		$user_id = get_current_user_id();
+		$data = json_decode(file_get_contents('php://input'), true);
+		update_user_meta($user_id, 'signalwire', $data['signalwire']);
+	}
+
+	function cancel_queries() {
+		update_post_meta($_REQUEST['ID'], 'cancel', true);
+		die();
+	}
 }
 $lfapi_obj = new LeadFinderApi();
 
-if(is_admin()){
-	add_action( 'admin_menu', 'ProfitablePlugins\LeadFinder\gpapiscraper::admin_menu' );	
-	add_action( 'admin_init', 'ProfitablePlugins\LeadFinder\gpapiscraper::admin_init' );
-	add_action( 'save_post', 'ProfitablePlugins\LeadFinder\gpapiscraper::save_post' );
-	
-	add_action( 'edit_user_profile', 'ProfitablePlugins\LeadFinder\gpapiscraper::user_fields' );
-	add_action( 'edit_user_profile_update', 'ProfitablePlugins\LeadFinder\gpapiscraper::update_user_fields' );
-	add_action( 'show_user_profile', 'ProfitablePlugins\LeadFinder\gpapiscraper::user_fields' );
-	add_action( 'personal_options_update', 'ProfitablePlugins\LeadFinder\gpapiscraper::update_user_fields' );
-	
-	add_action('wp_ajax_gpapiscraper_scrape', 'ProfitablePlugins\LeadFinder\gpapiscraper::scrape');
-
-}
-
-add_action('init', 'ProfitablePlugins\LeadFinder\gpapiscraper::init');
+add_action('wp_ajax_gpapiscraper_scrape', 'LocalLeadScanner\gpapiscraper::scrape');
+add_action('init', 'LocalLeadScanner\gpapiscraper::init');

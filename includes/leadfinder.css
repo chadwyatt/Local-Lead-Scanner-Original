@@ -4,6 +4,8 @@
   --star-size: 20px;
   --star-color: #ccc;
   --star-background: #fc0;
+  --button-primary-color: #fff;
+  --button-primary-bg-color: red;
 }
 .Stars {
     --percent: calc(var(--rating) / 5 * 100%);
@@ -22,11 +24,93 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-.leadfinder-record {
-  padding: 3px 5px;
+.lf-icon-alert-modal {
+  text-align: center;
+  margin: 30px;
+}
+.lf-icon-alert-modal.lf-success {
+  color: green;
+}
+.lf-icon-alert-modal.lf-error {
+  color: red;
+}
+.lf-icon-alert-modal.lf-info {
+  color: #1f48e4;
+}
+.lf-icon-alert-modal .lf-alert-icon {
+  font-size: 5em;
+  margin-bottom: 20px;
+}
+.lf-icon-alert-modal .lf-alert-message {
+  font-size: 2em;
+  text-align: center;
+  font-weight: bold;
+}
+.lf-icon-alert-modal .lf-alert-subtext {
+  color: #999;
+  margin-top: 20px;
+}
+.lf-table {
+  width: 100%;
+  border: 1px solid #ccc;
+}
+.lf-table th, .lf-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+.lf-record {
+  padding: 13px 15px;
+  border: 1px solid #e6e3e3;
+  margin: 13px 0px;
+  background-color: #fff;
+}
+.lead-finder-wrapper a {
   cursor: pointer;
 }
-.leadfinder-record:hover {
-  background-color:#efefef;
+.lead-finder-wrapper h2 {
+  font-size: 24px;
 }
-  
+.lead-finder-wrapper h3 {
+  font-size: 20px;
+}
+.lead-finder-wrapper h4 {
+  font-size: 18px;
+}
+a.lfNavItem {
+  color: var(--nav-color);  
+  background-color: var(--nav-background-color);          
+}
+a.lfNavItem:hover {
+  color: var(--nav-color-hover);
+  background-color: var(--nav-background-color-hover);
+}
+/* a.navItem {
+  background-color: var(--nav-background-color);
+}
+a.navItem:hover {
+  background-color: var(--nav-background-color-hover);
+} */
+/* .subnav a {
+  color: var(--subnav-color);
+  background-color: var(--subnav-background-color);
+  border-radius: 15px;
+  padding: 3px 10px; 
+  font-size: 12px;
+  font-weight: bold;
+}
+.subnav a:hover {
+  color: var(--subnav-color-hover);
+  background-color: var(--subnav-background-color-hover);
+} */
+
+/* .button {
+  padding: 5px 15px;
+  margin-bottom: 10px;
+  margin-left: 10px;
+  border: none;
+}
+
+.button.primary {
+  color: var(--button-primary-color);
+  background-color: var(--button-primary-bg-color);
+} */
