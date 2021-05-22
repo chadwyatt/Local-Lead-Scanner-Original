@@ -263,9 +263,19 @@
                                             <i class="fas fa-mobile-alt" style="margin-right:3px;"></i>
                                             Phone Type Lookup
                                         </a>
-                                        <a v-else v-on:click="settings_view = 'phone_lookup'" v-bind:style="[style.navpill]">
+                                        <a v-if="settings_view == 'phone_lookup'" v-on:click="settings_view = 'phone_lookup'" v-bind:style="[style.navpill]">
                                             <i class="fas fa-mobile-alt" style="margin-right:3px;"></i>
                                             Phone Type Lookup
+                                        </a>
+
+                                        <!-- TWILIO -->
+                                        <a v-if="settings_view == 'twilio'" v-on:click="settings_view = 'twilio'" v-bind:style="[style.navpill, style.navpillActive]">
+                                            <i class="fas fa-mobile-alt" style="margin-right:3px;"></i>
+                                            Twilio
+                                        </a>
+                                        <a v-else v-on:click="settings_view = 'twilio'" v-bind:style="[style.navpill]">
+                                            <i class="fas fa-mobile-alt" style="margin-right:3px;"></i>
+                                            Twilio
                                         </a>
 
                                         <!-- GOOGLE API KEY -->
@@ -376,6 +386,24 @@
                                             <button v-on:click="saveSignalWireSettings" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight, style.marginTop20]">Save Settings</button>
                                         </div>
 
+                                        <!-- TWILIO SETTINGS www.twilio.com/referral/kvWmLr -->
+                                        <div v-if="settings_view === 'twilio'" style="margin-bottom:50px;padding:20px 30px;">
+                                            <h3 :style="[style.heading]">Twilio</h3>
+                                            <p>You can optionally enable an twilio for voicemail broadcasts and phone type (mobile, voip, or landline) lookups. You will need the following information from your <a href="https://www.twilio.com/referral/kvWmLr" target="_blank">twilio.com</a> account.</p>
+
+                                            <div style="margin:20px 0px">
+                                                <h5 :style="[style.heading]">Phone Type Lookup Active</h5>
+                                                <label><input type="checkbox" v-model="twilio.active" /> Active</label>
+                                            </div>
+
+                                            <label>Account SID</label>
+                                            <input v-model="twilio.account_sid" v-bind:style="[style.input, style.inputLarge]" />
+                                            
+                                            <label>Auth oken</label>
+                                            <input v-model="twilio.auth_token" v-bind:style="[style.input, style.inputLarge]" />
+
+                                            <button v-on:click="saveTwilioSettings" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight, style.marginTop20]">Save Settings</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -462,7 +490,7 @@
                             <div style="text-align:center;margin-bottom:20px;">
                                 <i class="fas fa-cog fa-spin" style="font-size:4em;margin-top:30px;"></i>
                                 <p v-if="!cancelQueries" style="margin-top: 15px;font-weight: bold;font-size: 1.5em;">"{{currentQuery}}"</p>
-                                <div v-if="signalwire.active">Phone type lookup is active.</div>
+                                <div v-if="signalwire.active || twilio.active">Phone type lookup is active.</div>
                                 <p v-if="cancelQueries" style="margin-top:30px;margin-bottom:30px;font-weight:bold;">Cancelling...</p>
                             </div>
                             <div v-if="queries || queries.length > 0 && cancelQueries == false">
@@ -589,6 +617,11 @@
                 namespace: '',
                 project_id: '',
                 api_token: ''
+            },
+            twilio: {
+                active: '',
+                account_sid: '',
+                auth_token: ''
             },
             settingsAreValid: false,
             query: '',
@@ -1214,6 +1247,21 @@
                     g.alert({message:'SAVED', type: 'success', time:2, delay:1})
                 })
             },
+            saveTwilioSettings: function() {
+                var url = ajaxurl+'?action=lead_finder_twilio_update';
+                this.alert({message:'SAVING...'})
+                let g = this
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({
+                        twilio: this.twilio
+                    })
+                }).then((response)=>{
+                    return response
+                }).then((data)=>{
+                    g.alert({message:'SAVED', type: 'success', time:2, delay:1})
+                })
+            },
             editLocation: function(location) {
                 this.locations_view = ''
                 this.edit_location = location
@@ -1316,6 +1364,7 @@
                     g.license_status = data.license_status
                     g.roles = data.roles
                     g.signalwire = data.signalwire
+                    g.twilio = data.twilio
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
                         if(data.google_places_api_key != true){

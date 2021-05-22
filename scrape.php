@@ -110,6 +110,7 @@ function get_details($b){
 	//lookup phone type
 	$user_id = get_current_user_id();
 	$signalwire = get_user_meta($user_id, 'signalwire', true);
+	$twilio = get_user_meta($user_id, 'lls_twilio', true);
 	if($signalwire['active'] == 1) {
 		$url = sprintf('https://%s.signalwire.com/api/relay/rest/lookup/phone_number/%s?include=carrier,cnam', $signalwire['namespace'], $phone);
 		$basicauth = 'Basic ' . base64_encode( $signalwire['project_id'].':'.$signalwire['api_token'] );
