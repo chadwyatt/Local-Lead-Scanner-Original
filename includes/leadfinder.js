@@ -156,27 +156,24 @@
                                     <strong>Filters:</strong> 
                                     <div style="margin-bottom:16px;">
                                         <span :style="style.filter">
-                                            Website
-                                            <select v-model="filters.website" :style="[style.input, style.inputSmall]">
-                                                <option>All</option>
+                                            <select v-model="filters.website" :style="[style.selectSmall]">
+                                                <option value="All">Website</option>
                                                 <option>Yes</option>
                                                 <option>No</option>
                                             </select>
                                         </span>
                                         
                                         <span :style="style.filter">
-                                            Phone Type
-                                            <select v-model="filters.phone_type" :style="[style.input, style.inputSmall]">
-                                                <option>All</option>
+                                            <select v-model="filters.phone_type" :style="[style.selectSmall]">
+                                                <option value="All">Phone Type</option>
                                                 <option value="wireless">Wireless</option>
                                                 <option value="landline">Landline</option>
                                             </select>
                                         </span>
                                         
                                         <span :style="style.filter">
-                                            Reviews 
-                                            <select v-model="filters.reviews" :style="[style.input, style.inputSmall]">
-                                                <option value="5">All</option>
+                                            <select v-model="filters.reviews" :style="[style.selectSmall]">
+                                                <option value="5">Reviews</option>
                                                 <option value="4">4 or less</option>
                                                 <option value="3">3 or less</option>
                                                 <option value="2">2 or less</option>
@@ -186,9 +183,8 @@
                                         </span>
 
                                         <span :style="style.filter">
-                                            Rating 
-                                            <select v-model="filters.rating" :style="[style.input, style.inputSmall]">
-                                                <option value="5">All</option>
+                                            <select v-model="filters.rating" :style="[style.selectSmall]">
+                                                <option value="5">Rating</option>
                                                 <option value="4.5">4.5 or lower</option>
                                                 <option value="4">4 or lower</option>
                                                 <option value="3.5">3.5 or lower</option>
@@ -199,24 +195,30 @@
                                                 <option value="1">1 or lower</option>
                                             </select>
                                         </span>
-                                        <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download()">
-                                            <i class="fas fa-download"></i> Download
+                                        <a title="Download Data" style="margin-right:10px;cursor:pointer;float:right;" v-on:click="download()">
+                                            <i class="fas fa-download"></i>
                                         </a>
-                                        <a :style="[style.copyDataLink]" v-on:click="exportWebsites">
-                                            <i class="fas fa-map-marker-alt"></i>
-                                            Copy Data
+                                        <a title="Copy Data" :style="[style.copyDataLink, style.floatRight]" v-on:click="exportWebsites">
+                                            <i class="fas fa-copy"></i>
                                         </a>
+                                        <a title="Voicemail Blast" :style="[style.voicemailLink, style.floatRight]" v-on:click="showVoicemailBlastModal()">
+                                            <i class="fas fa-mobile-alt"></i>
+                                        </a>
+                                    
                                     </div>
                                     
                                     
 
-                                    <h3 :style="[style.heading, style.headingRecords]">Records <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span></h3>
+                                    <h3 :style="[style.heading, style.headingRecords]">
+                                        Records 
+                                        <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span>
+                                    </h3>
                                     
                                     <!-- SCANNER RECORDS -->
                                     <div class="lf-records">
                                         <div v-if="loadingRecords">Loading...</div>
                                         <div v-for="business in businesses" v-bind:style="[style.record, style.shadow]">
-                                            <div style="float:right;display:inline-block">
+                                            <div style="float:right;display:inline-block;text-align:right;">
                                                 <a style="margin-left:5px;" v-if="business.business_data.website" :href="business.business_data.website" target="_blank">
                                                     <i class="fas fa-external-link-alt"></i>
                                                 </a>
@@ -450,6 +452,78 @@
                         </div>
                     </div>
 
+
+                    <!-- VOICEMAIL BLAST -->
+                    <div id="voicemailBlastmodal" v-bind:style="style.modalVoicemailBlast">
+                        <div v-bind:style="style.modalContent">
+                            <span v-bind:style="style.modalClose" v-on:click="closeVoicemailBlastModal()">&times;</span>
+                            <div style="clear:both;"></div>
+
+                            <h2 v-bind:style="style.heading">Voicemail Broadcast</h2>
+                            
+                            <label>From Twilio Phone Number:</label>
+                            <select label="Locations" v-model="voicemail.from_phone_number" :items="twilio.phone_numbers" v-bind:style="[style.input, style.inputLarge]">
+                                <option v-for="from_number in twilio.phone_numbers" v-bind:value="from_number.phoneNumber">
+                                    {{ from_number.friendlyName }}
+                                </option>
+                            </select>
+                            
+
+                            
+                            <div style="margin-bottom:10px;">
+                                <label>Audio: 
+                                    <span style="font-size:0.8em;">
+                                        <a v-on:click="toggleAudioFile('upload')" v-bind:style="audioFileStyle('upload')">Upload</a> | 
+                                        <a v-on:click="toggleAudioFile('url')" v-bind:style="audioFileStyle('url')">URL</a>
+                                        <span v-if="audio_files.length > 0">
+                                            | 
+                                            <a v-on:click="toggleAudioFile('select')" v-bind:style="audioFileStyle('select')">Select</a>
+                                        </span>
+                                    </span>
+                                </label>
+                                <div v-if="show.audio_file_url === 'url'">
+                                    <input v-model="voicemail.audio_file_url" v-bind:style="[style.input, style.inputLarge]" placeholder="Enter url 'https://'" />
+                                </div>
+                                <div v-if="show.audio_file_url === 'upload'" id="uploadAudioContainer">
+                                    <input type="file" class="audiofile" name="audiofile" accept="audio/*" />
+                                </div>
+                                <div v-if="show.audio_file_url === 'select'">
+                                    <select label="Audio" v-model="voicemail.audio_file_url" :items="audio_files" v-bind:style="[style.input, style.inputLarge]">
+                                        <option v-for="audio_file in audio_files" v-bind:value="audio_file.url">
+                                            {{ audio_file.filename }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label>Recipients <span style="font-size:0.8em;">(mobile only)</span></label>
+                                <select v-bind:style="[style.input, style.inputLarge]" v-model="voicemail.send_to">
+                                    <option value="1">Send to all who haven't received THIS audio on THIS list</option>
+                                    <option value="2">Send to all who haven't received THIS audio on ANY list</option>
+                                    <option value="3">Send to all who haven't received ANY audio on THIS list</option>
+                                    <option value="4">Send to all who haven't received ANY audio on ANY list</option>
+                                    <option value="5">Send to all on this list</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label>
+                                    <input type="checkbox" v-model="voicemail.record" />
+                                    Record audio of calls for review
+                                </label>
+                            </div>
+                                    
+                            <div style="text-align:center;margin-top:20px;">
+                                <button v-bind:style="[style.btn, style.btnLarge]" v-on:click="closeVoicemailBlastModal()">Close</button>
+                                <button v-bind:style="[style.btn, style.btnLarge, style.btnSuccess]" v-on:click="sendVoicemailBlast()">Start Broadcast</button>
+                            </div>
+                            <div style="clear:both;"></div>
+                        </div>
+                    </div>
+                    
+                    
+                    <!-- DELETE MODAL -->
                     <div id="deleteModal" v-bind:style="style.modalDelete">
                         <div v-bind:style="style.modalContent">
                             <span v-bind:style="style.modalClose" v-on:click="style.modalDelete.display = 'none'">&times;</span>
@@ -467,6 +541,8 @@
                         </div>
                     </div>
 
+
+                    <!-- DELETE MODAL -->
                     <div id="deactivateModal" v-bind:style="style.deactivateModal">
                         <div v-bind:style="style.modalContent">
                             <span v-bind:style="style.modalClose" v-on:click="style.deactivateModal.display = 'none'">&times;</span>
@@ -579,6 +655,14 @@
         `,
         data: {
             // scannerRunning: false,
+            show: {
+                audio_file_url: 'upload'
+            },
+            voicemail: {
+                record: false,
+                send_to: 1
+            },
+            audio_files: [],
             license_key: '',
             roles: [],
             loadingFinders: false,
@@ -621,7 +705,10 @@
             twilio: {
                 active: '',
                 account_sid: '',
-                auth_token: ''
+                auth_token: '',
+                phone_numbers: [
+                    { SID: "123", phone_number: "(727) 305-0899" }
+                ]
             },
             settingsAreValid: false,
             query: '',
@@ -734,12 +821,6 @@
                         bgImage3: 'linear-gradient(60deg,rgb(212 107 255),#e53935)',
                         bgImage4: 'linear-gradient(60deg,rgb(28 15 228),#2ea3f2)',
                     }
-
-                },
-                dark: {
-                    background1: '#000',
-                    background2: 'rgb(245 244 244)',
-                    background3: '#999',
                 }
             },
             style: {}
@@ -800,9 +881,19 @@
             },
             isAdministrator: function() {
                 return this.roles.includes('administrator')
-            }
+            },
         },
         methods: {
+            audioFileStyle: function(view) {
+                if(this.show.audio_file_url != view)
+                    return {}
+                    
+                return {
+                    fontWeight: 'bold',
+                    textDecoration: 'underline',
+                    color: this.colors[this.theme].primary
+                }
+            },
             setStyles: function() {
                 // this.theme = 'dark'
                 this.style = {
@@ -858,9 +949,15 @@
                     },
                     copyDataLink: {
                         cursor: 'pointer',
-                        marginRight: '5px',
+                        paddingRight: '7px',
                         textDecoration: 'none'
                     },
+                    voicemailLink: {
+                        cursor: 'pointer',
+                        paddingRight: '7px',
+                        textDecoration: 'none'
+                    },
+
                     navItem: {
                         cursor: 'pointer',
                         width: '86%',
@@ -950,6 +1047,13 @@
                     inputSmall: {
                         width: 'auto',
                         padding: '2px 2px'
+                    },
+                    selectSmall: {
+                        width: 'auto',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        marginBottom: '10px',
+                        backgroundColor: this.colors[this.theme].input.background
                     },
                     textarea: {
                         height: '100px',
@@ -1045,6 +1149,19 @@
                         backgroundColor: 'rgba(0,0,0,0.4)'
                     },
                     modalDelete: {
+                        display: 'none',
+                        position: 'fixed',
+                        zIndex: 1,
+                        paddingTop: '100px',
+                        left: 0,
+                        top: 0,
+                        width: '100%',
+                        height: '100%',
+                        overflow: 'auto',
+                        backgroundColor: 'rgb(0,0,0)',
+                        backgroundColor: 'rgba(0,0,0,0.4)'
+                    },
+                    modalVoicemailBlast: {
                         display: 'none',
                         position: 'fixed',
                         zIndex: 1,
@@ -1360,11 +1477,17 @@
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
+                    if(data.error){
+                        console.error(data.error)
+                        this.alert({ type: "error", message: data.error })
+                        return
+                    }
                     g.google_places_api_key = data.google_places_api_key
                     g.license_status = data.license_status
                     g.roles = data.roles
                     g.signalwire = data.signalwire
                     g.twilio = data.twilio
+                    g.audio_files = data.audio_files
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
                         if(data.google_places_api_key != true){
@@ -1730,6 +1853,9 @@
             },
             deleteLeadFinder: function() {
                 this.style.modalDelete.display = 'none'
+                this.businesses = []
+
+                this.alert({message: "Deleting..."})
                 var url = ajaxurl+'?action=lead_finder_delete';
                 fetch(url, {
                     method: 'post',
@@ -1739,6 +1865,7 @@
                 }).then((response)=>{
                     return response.json()
                 }).then((data) => {
+                    this.alert({ message: "Done!", type:"success", time:1 })
                     this.finders = data
                     this.finder = {
                         post_title: '',
@@ -1746,6 +1873,68 @@
                     }
                 })
                 return
+            },
+            showVoicemailBlastModal: function() {
+                this.style.modalVoicemailBlast.display = 'block'
+                var g = this
+                Vue.nextTick(function(){
+                    g.createFileUploadBox()
+                })
+            },
+            createFileUploadBox: function() {
+                FilePond.registerPlugin(FilePondPluginFileValidateType);
+
+                var uploadUrl = ajaxurl+'?action=lead_finder_upload_audio_file';
+                
+                FilePond.create(document.querySelector('.audiofile'), {
+                    instantUpload: true,
+                    acceptedFileTypes: ['audio/*'],
+                    labelIdle: 'Drag & Drop your audio file or <span class="filepond--label-action"> Browse </span>',
+                    credits: { label: '', url: '' },
+                    server: {
+                        // url: uploadUrl,
+                        process: uploadUrl,
+                        // revert: '/revert.php',
+                        // restore: '/restore.php?id=',
+                        // fetch: '/fetch.php?data='
+                    }
+                })
+
+                const pond = document.querySelector('.audiofile');
+                pond.addEventListener('FilePond:processfile', e => {
+                    let file = JSON.parse(e.detail.file.serverId)
+                    console.log("metadata", JSON.parse(e.detail.file.serverId))
+                    this.voicemail.audio_file_url = file.url
+                });
+            },
+            closeVoicemailBlastModal: function() {
+                FilePond.destroy(document.querySelector('.audiofile'))
+                this.style.modalVoicemailBlast.display = 'none'
+            },
+            sendVoicemailBlast: function() {
+                console.log(this.voicemail)
+                var url = ajaxurl+'?action=lead_finder_update_vm_broadcast';
+                let g = this
+                this.voicemail.active = true
+                this.voicemail.ID = this.finder.ID
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({ ...this.voicemail })
+                }).then((response)=>{
+                    return response
+                }).then((data)=>{
+                    // g.alert({message:'SAVED', type: 'success', time:2, delay:1})
+                    console.log(data)
+                })
+            },
+            toggleAudioFile: function(view) {
+                this.show.audio_file_url = view
+                if(view === 'upload'){
+                    var g = this
+                    Vue.nextTick(function(){
+                        g.createFileUploadBox()
+                    })
+                }
             }
         },
         watch: {

@@ -9,6 +9,9 @@ Author URI: https://localleadscanner.com
 */
 
 namespace LocalLeadScanner;
+use Twilio\Rest\Client;
+use Twilio\TwiML\VoiceResponse;
+
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -66,9 +69,13 @@ class gpapiscraper {
 		add_shortcode('local-lead-scanner', function($attr){
 			wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
 			wp_enqueue_script( 'vuejs' );
-			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
-			wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
-			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
+			wp_enqueue_script( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ) );
+			wp_enqueue_script( 'fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js' );
+			wp_enqueue_style( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css' );
+			wp_enqueue_script( 'filepond', 'https://unpkg.com/filepond/dist/filepond.min.js' );
+			wp_enqueue_script( 'filepond-jquery', 'https://unpkg.com/jquery-filepond/filepond.jquery.js' );
+			wp_enqueue_script( 'filepond-filetype', 'https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js' );
+			wp_enqueue_style( 'filepond', 'https://unpkg.com/filepond/dist/filepond.css' );
 			
 			return '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
@@ -83,7 +90,7 @@ class gpapiscraper {
 	}
 }
 
-class LeadFinderApi {
+class LocalLeadScannerPlugin {
 	function __construct() {
 		add_action('init', function () {
 			add_action('wp_ajax_lead_finder_list', array($this, 'get_finders'));
@@ -94,6 +101,7 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
 			add_action('wp_ajax_lead_finder_get_settings', array($this, 'get_settings'));
+			add_action('wp_ajax_nopriv_lead_finder_get_settings', array($this, 'login_required'));
 			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
 			add_action('wp_ajax_lead_finder_download', array($this, 'download'));
 			add_action('wp_ajax_lead_finder_create_key_test', array($this, 'create_key_test'));
@@ -104,6 +112,11 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_signalwire_update', array($this, 'signalwire_update'));
 			add_action('wp_ajax_lead_finder_twilio_update', array($this, 'twilio_update'));
 			add_action('wp_ajax_lead_finder_cancel', array($this, 'cancel_queries'));
+			add_action('wp_ajax_lead_finder_send_voicemail', array($this, 'send_voicemail'));
+			add_action('wp_ajax_nopriv_lead_finder_twilio_twiml', array($this, 'twilio_twiml'));
+			add_action('wp_ajax_nopriv_lead_finder_twilio_status_callback', array($this, 'twilio_status_callback'));
+			add_action('wp_ajax_lead_finder_upload_audio_file', array($this, 'upload_audio_file'));
+			add_action('wp_ajax_lead_finder_update_vm_broadcast', array($this, 'update_vm_broadcast'));
 		});
 		add_action('admin_menu', function() {
 			add_menu_page(
@@ -116,6 +129,12 @@ class LeadFinderApi {
 				20
 			);
 		});
+	}
+
+	function login_required() {
+		header('Content-Type: application/json');
+		echo(json_encode(array("error" => "Login Required")));
+		die();
 	}
 
 	public function display_plugin_admin_page() {
@@ -258,6 +277,25 @@ class LeadFinderApi {
 
 		$signalwire = get_user_meta($user_id, 'signalwire', true);
 		$twilio = get_user_meta($user_id, 'lls_twilio', true);
+		$audio_files_meta = get_user_meta($user_id, 'lf_audio_files', true);
+		$audio_files = [];
+
+		//return clean array of files without full file path
+		if(gettype($audio_files_meta) != 'string'){
+			foreach($audio_files_meta as $file){
+				array_push($audio_files, array("url" => $file["url"], "filename" => $file["filename"]));
+			}
+		}
+
+		// get twilio incoming phone numbers
+		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
+		$twilio['phone_numbers'] = [];
+		foreach ($incomingPhoneNumbers as $record) {
+			error_log(print_r($record, true));
+			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
+		}
+
 
 		header('Content-Type: application/json');
 		echo(json_encode(array(
@@ -266,7 +304,8 @@ class LeadFinderApi {
 			'roles' => $roles,
 			'realapikey' => $real_gpapikey,
 			'signalwire' => $signalwire,
-			'twilio' => $twilio
+			'twilio' => $twilio,
+			'audio_files' => $audio_files
 		)));
 		die();
 	}
@@ -490,8 +529,153 @@ class LeadFinderApi {
 		update_post_meta($_REQUEST['ID'], 'cancel', true);
 		die();
 	}
+
+	function send_voicemail($params){ 
+		// $user_id = get_current_user_id();
+		// $twilio = get_user_meta($user_id, 'lls_twilio', true);
+        // $client = new Client($twilio['account_sid'], $twilio['auth_token']);
+
+        $client = new Client($params['account_sid'], $params['auth_token']);
+        
+		$phone_number = $params['phone_number'];
+		$from_number = $params['from_number'];
+		$audio_file_url = $params['audio_url'];
+
+		$ajax_url = admin_url( 'admin-ajax.php' );
+		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".$audio_file_url;
+
+		$twilio_status_callback_url = $ajax_url."?action=lead_finder_twilio_status_callback&ID=";
+
+        $timeout = 4;
+
+		// TODO: check phone number for recent activity, eliminate dups, etc
+        
+		// first call, ties up line for a few seconds then hangs up
+		$client->account->calls->create(  
+			$phone_number,
+			$from_number,
+			array(
+				"url" => $twiml_url,
+				"timeout" => $timeout,
+				"record" => true,
+				"statusCallback" => $twilio_status_callback_url,
+				"statusCallbackEvent" => array("answered","completed"),
+				"machineDetection" => "DetectMessageEnd"
+			)
+		);
+		sleep(1);
+        
+		// second call (goes to voicemail)
+        $client->account->calls->create(  
+            $phone_number,
+			$from_number,
+			array(
+				"url" => $twiml_url,
+				"timeout" => $timeout,
+				"record" => true,
+				"statusCallback" => $twilio_status_callback_url,
+				"statusCallbackEvent" => array("answered","completed"),
+				"machineDetection" => "DetectMessageEnd"
+			)
+        );
+        sleep(1);
+
+        return true;
+    }
+
+    public function twilio_twiml(){
+		$data = json_decode(file_get_contents('php://input'), true);
+        $response = new VoiceResponse();
+        $AnsweredBy = $data["AnsweredBy"];
+        
+        //if not human, play the audio file
+        if($AnsweredBy !== null && $AnsweredBy !== 'human'){	
+            $response->play($_REQUEST['audioFileUrl']);
+        } else {
+            //if human, hangup
+            $response->hangup();
+        }   
+
+        header("Content-type: text/xml");
+        echo $response;
+        die();
+    }
+
+    public function twilio_status_callback($request){
+        //update phone number record
+        //add recording url
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        $ID = $_REQUEST['ID'];
+        update_post_meta($ID, 'status', $data["CallStatus"]);
+        update_post_meta($ID, 'modified', $data["Timestamp"]);
+        if($data["RecordingUrl"] != ""){
+            update_post_meta($ID, 'RecordingUrl', $data["RecordingUrl"]);
+        }
+
+		// header("Content-type: text/xml");
+        echo "OK";
+        die();
+    }
+
+	function upload_audio_file() {
+		$filename = time() . '-' . $_FILES['audiofile']['name'];
+		// if ($_FILES['fileToUpload']['size'] <= 500000)
+		$result = wp_upload_bits($filename , null, file_get_contents($_FILES['audiofile']['tmp_name']));
+		
+		//save file reference to user meta data
+		$user_id = get_current_user_id();
+		$files_meta = get_user_meta($user_id, 'lf_audio_files', true);
+		
+		$new_files = [];
+		if(gettype($files_meta) != 'string') {
+
+			//loop through existing files to make sure they exist and rebuild the array of files
+			foreach($files_meta as $file){
+				//make sure file exists
+				if(file_exists($file["file"]))
+					array_push($new_files, $file);
+			}
+		}
+
+		array_push($new_files, array("url" => $result['url'], "file" => $result['file'], "filename" => $_FILES['audiofile']['name']));
+		update_user_meta($user_id, 'lf_audio_files', $new_files);
+
+		
+		header('Content-Type: application/json');
+		echo(json_encode($result));
+		die();
+	}
+
+	function update_vm_broadcast() {
+		//update leadfinder record meta to turn on/off a vm broadcast
+
+		$data = json_decode(file_get_contents('php://input'), true);
+		print_r($data);
+		$ID = $data['ID'];
+
+		update_post_meta($ID, 'vm_broadcast_active', $data['active']);
+		update_post_meta($ID, 'vm_broadcast_settings', $data);
+
+		//if turning on, call the run_vm_broadcast
+		if($data['active'] == '1'){
+			echo "\nrun the campaign\n";
+			$this->run_vm_broadcast($ID);
+		}
+	}
+
+	function run_vm_broadcast($ID = null) {
+		$settings = [];
+		if($ID !== null)
+			$settings = get_post_meta($ID, 'vm_broadcast_settings', true);
+
+		//else query all posts that are active
+
+		print_r($settings);
+	}
 }
-$lfapi_obj = new LeadFinderApi();
+
+$lfapi_obj = new LocalLeadScannerPlugin();
 
 add_action('wp_ajax_gpapiscraper_scrape', 'LocalLeadScanner\gpapiscraper::scrape');
 add_action('init', 'LocalLeadScanner\gpapiscraper::init');
