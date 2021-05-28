@@ -77,6 +77,7 @@ function run_scraper($pagetoken = ''){
 		if(count($posts) === 0){
 			get_details($b);
 		}
+		// return;
 	}
 
 	if($data['next_page_token'] != ''){
@@ -121,7 +122,7 @@ function get_details($b){
 	// }
 
 	$twilio = get_user_meta($user_id, 'lls_twilio', true);
-	if($twilio['active'] == 1){
+	if($twilio['active'] == 1 && $twilio['account_sid'] != '' && $twilio['auth_token'] != ''){
 		$url = sprintf('https://lookups.twilio.com/v1/PhoneNumbers/%s?Type=carrier', $phone);
 		$basicauth = 'Basic ' . base64_encode( $twilio['account_sid'].':'.$twilio['auth_token'] );
 		$lookup = wp_remote_get($url, array('headers' => array('Authorization' => $basicauth)));
@@ -145,6 +146,8 @@ function get_details($b){
 	$ID = wp_insert_post($post);
 	update_post_meta($ID, 'business_reference', $b['reference']);
 	update_post_meta($ID, 'business_data', $business);
+	update_post_meta($ID, 'phone_type', $phone_type);
+	update_post_meta($ID, 'phone_number', $phone);
 
 }
 

@@ -166,6 +166,15 @@ class LocalLeadScannerPlugin {
 			'orderby' => 'title',
 			'order' => 'ASC'
 		));
+
+		foreach($posts as $post) {
+			$voicemail = get_post_meta($post->ID, 'vm_broadcast_settings', true);
+			// $obj = new stdClass();
+			$obj = (object)[];
+			$post->voicemail = $voicemail != '' ? $voicemail : $obj;
+			// $post->voicemail = $voicemail;
+		}
+
 		header('Content-Type: application/json');
 		echo(json_encode($posts));
 		die();
@@ -181,6 +190,7 @@ class LocalLeadScannerPlugin {
 		
 		// $this->get_finders();
 		$post = get_post($ID);
+		$post->voicemail = (object)[];
 
 		header('Content-Type: application/json');
 		echo(json_encode($post));
@@ -226,7 +236,12 @@ class LocalLeadScannerPlugin {
 			'posts_per_page' => -1
 		));
 		foreach($posts as $post){
-			$post->business_data = get_post_meta($post->ID, 'business_data', true);
+			$business_data = get_post_meta($post->ID, 'business_data', true);
+			// if($business_data['phone_type'] == 'wireless') {
+			// 	$business_data['phone_type'] = 'mobile';
+			// 	update_post_meta($post->ID, 'business_data', $business_data);
+			// }
+			$post->business_data = $business_data;
 		}
 
 		header('Content-Type: application/json');
@@ -292,11 +307,11 @@ class LocalLeadScannerPlugin {
 		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
 		$twilio['phone_numbers'] = [];
 		foreach ($incomingPhoneNumbers as $record) {
-			error_log(print_r($record, true));
+			// error_log(print_r($record, true));
 			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
 		}
 
-
+		
 		header('Content-Type: application/json');
 		echo(json_encode(array(
 			'google_places_api_key' => $google_places_api_key,
@@ -305,7 +320,7 @@ class LocalLeadScannerPlugin {
 			'realapikey' => $real_gpapikey,
 			'signalwire' => $signalwire,
 			'twilio' => $twilio,
-			'audio_files' => $audio_files
+			'audio_files' => $audio_files,
 		)));
 		die();
 	}
@@ -651,28 +666,146 @@ class LocalLeadScannerPlugin {
 		//update leadfinder record meta to turn on/off a vm broadcast
 
 		$data = json_decode(file_get_contents('php://input'), true);
-		print_r($data);
 		$ID = $data['ID'];
 
-		update_post_meta($ID, 'vm_broadcast_active', $data['active']);
-		update_post_meta($ID, 'vm_broadcast_settings', $data);
+		update_post_meta($ID, 'vm_broadcast_active', $data['voicemail']['active']);
+		update_post_meta($ID, 'vm_broadcast_settings', $data['voicemail']);
 
 		//if turning on, call the run_vm_broadcast
-		if($data['active'] == '1'){
-			echo "\nrun the campaign\n";
+		if($data['voicemail']['active'] == '1'){
 			$this->run_vm_broadcast($ID);
 		}
 	}
 
 	function run_vm_broadcast($ID = null) {
-		$settings = [];
-		if($ID !== null)
-			$settings = get_post_meta($ID, 'vm_broadcast_settings', true);
+		if($ID == null)
+			return;
+		
+		$settings = get_post_meta($ID, 'vm_broadcast_settings', true);
+		// print_r($settings);
 
-		//else query all posts that are active
+		// still running?
+		if($settings['active'] != '1')
+			return;
 
-		print_r($settings);
+		// get all businesses with phone_type = 'mobile'
+		$posts = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'post_parent' => $ID,
+			'posts_per_page' => -1,
+			'meta_key' => 'phone_type',
+			'meta_value' => 'mobile'
+		));
+
+		foreach($posts as $post){
+
+			// look for the next eligible record
+			// $post->business_data = get_post_meta($post->ID, 'business_data', true);
+			// $post->voicemail_history = get_post_meta($post->ID, 'voicemail_history', true);
+			$post->meta = get_post_meta($post->ID);
+			// print_r($post);
+			// echo "\n\n========\n\n";
+
+			// // if no previous history, send the vm
+			// if(count($voicemail_history) < 1 || $voicemail_history == ''){
+			// 	echo "\nsend vm ".$settings['send_to'];
+			// }
+
+			
+			switch($settings['send_to']){
+				// Send to all who haven't received THIS audio on THIS list
+				case 1:
+					if($this->not_Received_This_Audio_On_This_List($post, $settings)) {
+						echo "\nsend it 1 => ".$post->meta['phone_number'][0];
+					}
+					break;
+				// Send to all who haven't received THIS audio on ANY list
+				case 2:
+					if($this->not_Received_This_Audio_On_Any_List($post, $settings)) {
+						echo "\nsend it 2 => ".$post->meta['phone_number'][0];
+					}
+					break;
+				// // Send to all who haven't received ANY audio on THIS list
+				// case 3:
+				// 	if($this->not_Received_Any_Audio_On_This_List()){
+				// 		echo "send it 3\n";
+				// 	}
+				// 	break;
+				// // Send to all who haven't received ANY audio on ANY list
+				// case 4:
+				// 	if($this->not_Received_Any_Audio_On_Any_List()){
+				// 		echo "send it 4\n";
+				// 	}
+				// 	break;
+				// // Send to all on this list
+				// case 5:
+				// 	echo "send it 5\n";
+				// 	break;
+				default:
+					echo "do not send\n";
+
+			}
+
+		}
+	
+
 	}
+
+	function not_Received_This_Audio_On_This_List($post, $settings) {
+		
+		// check this list specifically
+		$voicemail_history = $post->meta['voicemail_history'];
+		if(gettype($voicemail_history) == 'string' || count($voicemail_history) < 1)
+			return true;
+
+		// check for specic audio
+
+		// if($this->not_Received_Any_Audio_On_Any_List($post, $settings))
+		// 	return true;
+		
+		return false;
+	}
+
+	function not_Received_This_Audio_On_Any_List($post, $settings) {
+		if($this->not_Received_Any_Audio_On_Any_List($post, $settings))
+			return true;
+		return false;
+	}
+
+	function not_Received_Any_Audio_On_This_List($post, $settings) {
+		if($this->not_Received_Any_Audio_On_Any_List($post, $settings))
+			return true;
+		return false;
+	}
+
+	function not_Received_Any_Audio_On_Any_List($post, $settings) {
+		// get phone record globally for user
+		$user_id = get_current_user_id();
+		$businesses = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'author' => $user_id,
+			'posts_per_page' => -1,
+			'meta_key' => 'phone_number',
+			'meta_value' => $post->meta['phone_number'][0]
+		));
+
+		$voicemail_exists = false;
+		foreach($businesses as $business){
+			if($voicemail_exists == false) {
+				$voicemail_history = get_post_meta($business->ID, 'voicemail_history', true);
+				if(gettype($voicemail_history) != 'string' && count($voicemail_history) > 0) {
+					$voicemail_exists = true;
+				}
+			}
+		}
+		
+		return !$voicemail_exists;
+	}
+
+
+
 }
 
 $lfapi_obj = new LocalLeadScannerPlugin();
