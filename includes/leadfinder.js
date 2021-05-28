@@ -44,14 +44,16 @@
                                 <div v-if="loadingFinders" style="margin-left:20px;">Loading...</div>
 
                                 <!-- SCANNER NAV ITEMS -->
-                                <div v-for="item in finders" v-on:click="loadFinder(item)" v-if="showFinderInList(item.post_title)">
+                                <div v-for="item in finders" v-on:click="loadFinder(item)" v-if="showFinderInList(item.post_title)" :key="item.ID">
                                     <a v-if="item.ID == finder.ID" v-bind:style="[style.navItem, style.navItemActive]" class="lfNavItem">
                                         <i class="fas fa-map-marker-alt" :style="[style.navItemIconActive]"></i> 
                                         {{decodeHTML(item.post_title)}}
+                                        <i v-if="item.voicemail != undefined && item.voicemail.active" class="fas fa-spinner fa-spin" style="margin-left:5px;"></i> 
                                     </a>
                                     <a v-else v-bind:style="[style.navItem]" class="lfNavItem">
                                         <i class="fas fa-map-marker-alt" style="opacity:0.5;"></i> 
                                         {{decodeHTML(item.post_title)}}
+                                        <i v-if="item.voicemail != undefined && item.voicemail.active" class="fas fa-spinner fa-spin" style="margin-left:5px;"></i> 
                                     </a>
                                 </div>
                         </div>
@@ -97,7 +99,10 @@
                                             <div style="width:18%;float:left;">
                                                 <label>&nbsp;</label>
                                                 <button v-if="currentQuery == ''" v-bind:style="[style.btn, style.btnPrimary, style.btnFullWidth]" v-on:click="runLeadFinder">Run Scanner</button>
-                                                <button v-else v-bind:style="[style.btn, style.btnDanger, style.btnFullWidth]" v-on:click="cancelLeadFinder()">Stop</button>
+                                                <button v-else v-bind:style="[style.btn, style.btnDanger, style.btnFullWidth]" v-on:click="cancelLeadFinder()">
+                                                    <i class="fas fa-spinner fa-spin" style="margin-right:5px;"></i> 
+                                                    Stop
+                                                </button>
                                             </div>
                                             <div style="clear:both;">
                                                 <p v-if="currentQuery != ''">
@@ -108,7 +113,7 @@
                                                 <div v-if="queries.length > 0">
                                                     <div v-for="query in queries">
                                                         <div>
-                                                            <i class="fas fa-cog"></i> 
+                                                            <i class="fas fa-cog" style="opacity:0.4;"></i> 
                                                             Pending: {{query}}
                                                         </div>
                                                     </div>
@@ -124,8 +129,10 @@
 
                                 <div v-if="loadingRecords">Loading...</div>
                                 
+                                <div>View: {{ view }}</div>
+
                                 <!-- SCANNER RECORDS -->
-                                <div v-if="view === 'finder' && businesses.length > 0" style="margin-top:30px;">
+                                <div v-if="view === 'finder' && businesses && businesses.length > 0" style="margin-top:30px;">
 
                                     <!-- STATS DASHBOARD -->
                                     <div :style="[style.record, style.shadow]">
@@ -136,7 +143,7 @@
                                         </div>
                                         <div :style="[style.dashboardWidgetIcon, style.marginLeft1]">
                                             <div :style="[style.dashboardWidgetIconContainer, style.dashboardWidgetIconBg2]"><i class="fas fa-mobile-alt" style="opacity: 0.9"></i></div>
-                                            <div :style="[style.dashboardWidgetTitle2]">Wireless</div>
+                                            <div :style="[style.dashboardWidgetTitle2]">Mobile</div>
                                             <div :style="[style.dashboardWidgetNumber2]">{{ percentMobile }}%</div>
                                         </div>
                                         <div :style="[style.dashboardWidgetIcon, style.marginLeft1]">
@@ -156,27 +163,24 @@
                                     <strong>Filters:</strong> 
                                     <div style="margin-bottom:16px;">
                                         <span :style="style.filter">
-                                            Website
-                                            <select v-model="filters.website" :style="[style.input, style.inputSmall]">
-                                                <option>All</option>
+                                            <select v-model="filters.website" :style="[style.selectSmall]">
+                                                <option value="All">Website</option>
                                                 <option>Yes</option>
                                                 <option>No</option>
                                             </select>
                                         </span>
                                         
                                         <span :style="style.filter">
-                                            Phone Type
-                                            <select v-model="filters.phone_type" :style="[style.input, style.inputSmall]">
-                                                <option>All</option>
-                                                <option value="wireless">Wireless</option>
+                                            <select v-model="filters.phone_type" :style="[style.selectSmall]">
+                                                <option value="All">Phone Type</option>
+                                                <option value="mobile">Mobile</option>
                                                 <option value="landline">Landline</option>
                                             </select>
                                         </span>
                                         
                                         <span :style="style.filter">
-                                            Reviews 
-                                            <select v-model="filters.reviews" :style="[style.input, style.inputSmall]">
-                                                <option value="5">All</option>
+                                            <select v-model="filters.reviews" :style="[style.selectSmall]">
+                                                <option value="5">Reviews</option>
                                                 <option value="4">4 or less</option>
                                                 <option value="3">3 or less</option>
                                                 <option value="2">2 or less</option>
@@ -186,9 +190,8 @@
                                         </span>
 
                                         <span :style="style.filter">
-                                            Rating 
-                                            <select v-model="filters.rating" :style="[style.input, style.inputSmall]">
-                                                <option value="5">All</option>
+                                            <select v-model="filters.rating" :style="[style.selectSmall]">
+                                                <option value="5">Rating</option>
                                                 <option value="4.5">4.5 or lower</option>
                                                 <option value="4">4 or lower</option>
                                                 <option value="3.5">3.5 or lower</option>
@@ -199,24 +202,38 @@
                                                 <option value="1">1 or lower</option>
                                             </select>
                                         </span>
-                                        <a style="margin-left:10px;margin-right:10px;cursor:pointer;float:right;" v-on:click="download()">
-                                            <i class="fas fa-download"></i> Download
+
+                                        <!-- VOICEMAIL BROADCAST BUTTON -->
+                                        <a v-if="finder.voicemail != undefined && finder.voicemail.active" title="Voicemail Blast" :style="[style.voicemailLink, style.floatRight, style.navpill, style.navpillActive, style.btnSuccess]" v-on:click="showVoicemailBlastModal()">
+                                                <i class="fas fa-spinner fa-spin" style="margin-right:5px;"></i> 
+                                                Broadcasting...
                                         </a>
-                                        <a :style="[style.copyDataLink]" v-on:click="exportWebsites">
-                                            <i class="fas fa-map-marker-alt"></i>
-                                            Copy Data
+                                        <a v-else title="Voicemail Blast" :style="[style.voicemailLink, style.floatRight, style.navpill, style.navpillActive]" v-on:click="showVoicemailBlastModal()">
+                                                <i class="fas fa-voicemail" style="margin-right:5px;"></i> 
+                                                Voicemail
                                         </a>
+
+                                        <a title="Download Data" style="margin-right:10px;cursor:pointer;float:right;" v-on:click="download()">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        <a title="Copy Data" :style="[style.copyDataLink, style.floatRight]" v-on:click="exportWebsites">
+                                            <i class="fas fa-copy"></i>
+                                        </a>
+                                                                          
                                     </div>
                                     
                                     
 
-                                    <h3 :style="[style.heading, style.headingRecords]">Records <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span></h3>
+                                    <h3 :style="[style.heading, style.headingRecords]">
+                                        Records 
+                                        <span style="font-size:.5em;">({{businesses.length}} of {{original_businesses.length}})</span>
+                                    </h3>
                                     
                                     <!-- SCANNER RECORDS -->
                                     <div class="lf-records">
                                         <div v-if="loadingRecords">Loading...</div>
                                         <div v-for="business in businesses" v-bind:style="[style.record, style.shadow]">
-                                            <div style="float:right;display:inline-block">
+                                            <div style="float:right;display:inline-block;text-align:right;">
                                                 <a style="margin-left:5px;" v-if="business.business_data.website" :href="business.business_data.website" target="_blank">
                                                     <i class="fas fa-external-link-alt"></i>
                                                 </a>
@@ -234,9 +251,21 @@
                                                 <span v-html="business.business_data.adr_address"></span><br />
                                                 {{business.business_data.formatted_phone_number}}
                                                 <span v-if="business.business_data.phone_type !== undefined">
-                                                    <span v-if="business.business_data.phone_type == 'wireless'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-mobile-alt"></i></span>
-                                                    <span v-if="business.business_data.phone_type != 'wireless'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-phone"></i></span>
+                                                    <span v-if="business.business_data.phone_type == 'mobile'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-mobile-alt"></i></span>
+                                                    <span v-if="business.business_data.phone_type != 'mobile'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-phone"></i></span>
                                                 </span>
+                                            </div>
+                                            <div v-for="voicemail in business.voicemail_history" :style="[style.recordText]">
+                                                <i class="fas fa-voicemail"></i> 
+                                                <a :href="voicemail.audio_file_url" target="_blank">
+                                                    {{ voicemail.filename.replace(/^[0-9]+-/, "") }}
+                                                </a>
+                                                <span v-if="voicemail.RecordingUrl">
+                                                    <a :href="voicemail.RecordingUrl" target="_blank" title="Recording">
+                                                        <i class="fas fa-dot-circle"></i> 
+                                                    </a>
+                                                </span>
+                                                {{ moment.utc(voicemail.datetime, "YYYY-MM-DD hh:mm:ss").fromNow() }}
                                             </div>
                                         </div>
                                     </div>
@@ -450,6 +479,81 @@
                         </div>
                     </div>
 
+
+                    <!-- VOICEMAIL BLAST -->
+                    <div v-if="finder.voicemail != undefined" id="voicemailBlastmodal" v-bind:style="style.modalVoicemailBlast">
+                        <div v-bind:style="style.modalContent">
+                            <span v-bind:style="style.modalClose" v-on:click="closeVoicemailBlastModal()">&times;</span>
+                            <div style="clear:both;"></div>
+
+                            <h2 v-bind:style="style.heading">Voicemail Broadcast</h2>
+                            
+                            <label>From Twilio Phone Number:</label>
+                            <select label="Locations" v-model="finder.voicemail.from_phone_number" :items="twilio.phone_numbers" v-bind:style="[style.input, style.inputLarge]">
+                                <option v-for="from_number in twilio.phone_numbers" v-bind:value="from_number.phoneNumber">
+                                    {{ from_number.friendlyName }}
+                                </option>
+                            </select>
+                            
+
+                            
+                            <div style="margin-bottom:10px;">
+                                <label>Audio: 
+                                    <span style="font-size:0.8em;">
+                                        <a v-on:click="toggleAudioFile('upload')" v-bind:style="audioFileStyle('upload')">Upload</a> | 
+                                        <a v-on:click="toggleAudioFile('url')" v-bind:style="audioFileStyle('url')">URL</a>
+                                        <span v-if="audio_files.length > 0">
+                                            | 
+                                            <a v-on:click="toggleAudioFile('select')" v-bind:style="audioFileStyle('select')">Select</a>
+                                        </span>
+                                    </span>
+                                </label>
+                                <div v-if="show.audio_file_url === 'url'">
+                                    <input v-model="finder.voicemail.audio_file_url" v-bind:style="[style.input, style.inputLarge]" placeholder="Enter url 'https://'" />
+                                </div>
+                                <div v-if="show.audio_file_url === 'upload'" id="uploadAudioContainer">
+                                    <input type="file" class="audiofile" name="audiofile" accept="audio/*" />
+                                </div>
+                                <div v-if="show.audio_file_url === 'select'">
+                                    <select label="Audio" v-model="finder.voicemail.audio_file_url" :items="audio_files" v-bind:style="[style.input, style.inputLarge]">
+                                        <option v-for="audio_file in audio_files" v-bind:value="audio_file.url">
+                                            {{ audio_file.filename }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label>Recipients <span style="font-size:0.8em;">(mobile only)</span></label>
+                                <select v-bind:style="[style.input, style.inputLarge]" v-model="finder.voicemail.send_to">
+                                    <option value="1">Send to all who haven't received THIS audio</option>
+                                    <option value="3">Send to all who haven't received ANY audio on THIS list</option>
+                                    <option value="4">Send to all who haven't received ANY audio on ANY list</option>
+                                    <option value="5">Send to all on this list</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label>
+                                    <input type="checkbox" v-model="finder.voicemail.record" />
+                                    Record calls for review
+                                </label>
+                            </div>
+                                    
+                            <div style="text-align:center;margin-top:20px;">
+                                <button v-bind:style="[style.btn, style.btnLarge]" v-on:click="closeVoicemailBlastModal()">Close</button>
+                                <button v-if="finder.voicemail != undefined && finder.voicemail.active" v-bind:style="[style.btn, style.btnLarge, style.btnDanger]" v-on:click="stopVoicemailBlast()">
+                                    <i class="fas fa-spinner fa-spin"></i> 
+                                    Stop Broadcast
+                                </button>
+                                <button v-else v-bind:style="[style.btn, style.btnLarge, style.btnSuccess]" v-on:click="sendVoicemailBlast()">Start Broadcast</button>
+                            </div>
+                            <div style="clear:both;"></div>
+                        </div>
+                    </div>
+                    
+                    
+                    <!-- DELETE MODAL -->
                     <div id="deleteModal" v-bind:style="style.modalDelete">
                         <div v-bind:style="style.modalContent">
                             <span v-bind:style="style.modalClose" v-on:click="style.modalDelete.display = 'none'">&times;</span>
@@ -467,6 +571,8 @@
                         </div>
                     </div>
 
+
+                    <!-- DELETE MODAL -->
                     <div id="deactivateModal" v-bind:style="style.deactivateModal">
                         <div v-bind:style="style.modalContent">
                             <span v-bind:style="style.modalClose" v-on:click="style.deactivateModal.display = 'none'">&times;</span>
@@ -501,7 +607,10 @@
                                     </div>
                                 </div>
                             </div>
-                            <button v-bind:style="[style.btn, style.btnDanger]" v-on:click="cancelLeadFinder()">Stop</button>
+                            <button v-bind:style="[style.btn, style.btnDanger]" v-on:click="cancelLeadFinder()">
+                            <i class="fas fa-spinner fa-spin" style="margin-right:5px;"></i> 
+                                Stop
+                            </button>
                             <div style="clear:both;"></div>
                         </div>
                     </div>
@@ -532,8 +641,8 @@
                                     <td>
                                         {{currentBusiness.business_data.formatted_phone_number}}
                                         <span v-if="currentBusiness.business_data.phone_type !== undefined">
-                                            <span v-if="currentBusiness.business_data.phone_type == 'wireless'" :title="currentBusiness.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-mobile-alt"></i></span>
-                                            <span v-if="currentBusiness.business_data.phone_type != 'wireless'" :title="currentBusiness.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-phone"></i></span>
+                                            <span v-if="currentBusiness.business_data.phone_type == 'mobile'" :title="currentBusiness.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-mobile-alt"></i></span>
+                                            <span v-if="currentBusiness.business_data.phone_type != 'mobile'" :title="currentBusiness.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-phone"></i></span>
                                         </span>
                                     </td>
                                 </tr>
@@ -579,6 +688,15 @@
         `,
         data: {
             // scannerRunning: false,
+            show: {
+                audio_file_url: 'upload'
+            },
+            voicemail: {
+                record: false,
+                send_to: 1
+            },
+            voicemail_running: true,
+            audio_files: [],
             license_key: '',
             roles: [],
             loadingFinders: false,
@@ -610,7 +728,10 @@
             finder: {
                 ID: '',
                 post_title: '',
-                locations_id: 0 
+                locations_id: 0,
+                voicemail: {
+                    from_phone_number: ''
+                } 
             },
             signalwire: {
                 active: '',
@@ -621,7 +742,10 @@
             twilio: {
                 active: '',
                 account_sid: '',
-                auth_token: ''
+                auth_token: '',
+                phone_numbers: [
+                    { SID: "123", phone_number: "(727) 305-0899" }
+                ]
             },
             settingsAreValid: false,
             query: '',
@@ -734,12 +858,6 @@
                         bgImage3: 'linear-gradient(60deg,rgb(212 107 255),#e53935)',
                         bgImage4: 'linear-gradient(60deg,rgb(28 15 228),#2ea3f2)',
                     }
-
-                },
-                dark: {
-                    background1: '#000',
-                    background2: 'rgb(245 244 244)',
-                    background3: '#999',
                 }
             },
             style: {}
@@ -747,16 +865,14 @@
         mounted: function(){
             this.setStyles()
             this.getSettings()
-            // this.loadFinders()
-            // this.loadLocations()
         },
         computed: {
             percentMobile: function() {
-                let wireless = this.original_businesses.filter(business => {
-                    return business.business_data.phone_type == 'wireless'
+                let mobile = this.original_businesses.filter(business => {
+                    return business.business_data.phone_type == 'mobile'
                 })
-                if(wireless.length > 0)
-                    return (wireless.length/this.original_businesses.length*100).toFixed(0)
+                if(mobile.length > 0)
+                    return (mobile.length/this.original_businesses.length*100).toFixed(0)
                 return 0
             },
             percentWebsites: function() {
@@ -779,6 +895,8 @@
                 return this.finder.post_title !== '' ? this.finder.post_title : 'New Lead Scanner'
             },
             websiteUrls: function() {
+                if(this.businesses == undefined)
+                    return ''
                 //business that have a website
                 var businesses = this.businesses.filter(business => {
                     return business.business_data.website && business.business_data.website.length > 0
@@ -789,6 +907,8 @@
                 return websites.join("\n")
             },
             phoneNumbers: function() {
+                if(this.businesses == undefined)
+                    return ''
                 //business that have a phone number
                 var businesses = this.businesses.filter(business => {
                     return business.business_data.international_phone_number && business.business_data.international_phone_number.length > 0
@@ -800,9 +920,19 @@
             },
             isAdministrator: function() {
                 return this.roles.includes('administrator')
-            }
+            },
         },
         methods: {
+            audioFileStyle: function(view) {
+                if(this.show.audio_file_url != view)
+                    return {}
+                    
+                return {
+                    fontWeight: 'bold',
+                    textDecoration: 'underline',
+                    color: this.colors[this.theme].primary
+                }
+            },
             setStyles: function() {
                 // this.theme = 'dark'
                 this.style = {
@@ -858,9 +988,16 @@
                     },
                     copyDataLink: {
                         cursor: 'pointer',
-                        marginRight: '5px',
+                        paddingRight: '7px',
                         textDecoration: 'none'
                     },
+                    voicemailLink: {
+                        cursor: 'pointer',
+                        paddingRight: '7px',
+                        textDecoration: 'none',
+                        marginTop: '-3px'
+                    },
+
                     navItem: {
                         cursor: 'pointer',
                         width: '86%',
@@ -950,6 +1087,13 @@
                     inputSmall: {
                         width: 'auto',
                         padding: '2px 2px'
+                    },
+                    selectSmall: {
+                        width: 'auto',
+                        borderRadius: '4px',
+                        border: '1px solid #ccc',
+                        marginBottom: '10px',
+                        backgroundColor: this.colors[this.theme].input.background
                     },
                     textarea: {
                         height: '100px',
@@ -1045,6 +1189,19 @@
                         backgroundColor: 'rgba(0,0,0,0.4)'
                     },
                     modalDelete: {
+                        display: 'none',
+                        position: 'fixed',
+                        zIndex: 1,
+                        paddingTop: '100px',
+                        left: 0,
+                        top: 0,
+                        width: '100%',
+                        height: '100%',
+                        overflow: 'auto',
+                        backgroundColor: 'rgb(0,0,0)',
+                        backgroundColor: 'rgba(0,0,0,0.4)'
+                    },
+                    modalVoicemailBlast: {
                         display: 'none',
                         position: 'fixed',
                         zIndex: 1,
@@ -1301,9 +1458,6 @@
                 }).then((data) => {
                     if(data.license_status == 'active'){
                         this.license_status = 'active'
-                        // this.view = 'finders'
-                        // this.loadFinders()
-                        // g.loadLocations()
                         this.getSettings()
                         this.alert({message: "Plugin Activated", type:"success", time: 2, delay: 1})
                     } else {
@@ -1360,17 +1514,21 @@
                 fetch(url).then((response)=>{
                     return response.json()
                 }).then((data)=>{
+                    if(data.error){
+                        console.error(data.error)
+                        this.alert({ type: "error", message: data.error })
+                        return
+                    }
                     g.google_places_api_key = data.google_places_api_key
                     g.license_status = data.license_status
                     g.roles = data.roles
                     g.signalwire = data.signalwire
                     g.twilio = data.twilio
+                    g.audio_files = data.audio_files
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
                         if(data.google_places_api_key != true){
                             g.view = 'google_places_api_key'
-                            // g.loadFinders()
-                            // g.loadLocations()
                             this.alert({message: "Google API Key", text: "A Google API Key is required to run lead queries."})
                         } else {
                             g.view = 'finders'
@@ -1397,12 +1555,17 @@
                 // this.businesses = []
                 // var url = '/wp-json/lead_finder/records/'+item.ID;
                 var url = ajaxurl+'?action=lead_finder_records&ID='+item.ID
+                var g = this
                 fetch(url)
-                    .then(response => response.json())
+                    .then(response => {
+                        return response.json()
+                    })
                     .then(data => {
-                        this.businesses = data
-                        this.original_businesses = data
-                        this.loadingRecords = false
+                        g.alert({message:"test"})
+                        g.businesses = data
+                        g.original_businesses = data
+                        g.loadingRecords = false
+                        g.view = 'finder'
                     })
             },
             showFinders: function() {
@@ -1417,7 +1580,7 @@
             },
             showNewFinderForm: function() {
                 this.view = 'newfinder'
-                this.finder = { post_title: '' }
+                this.finder = { post_title: '', voicemail: { from_phone_number: '' } }
             },
             showSettings: function() {
                 this.view = 'settings'
@@ -1447,6 +1610,7 @@
                     }).then((response)=>{
                         return response.json()
                     }).then((data)=>{
+                        console.log("new lead finder", data)
                         // this.flashModal('Saved!')
                         this.alert({message:'SAVED', type: 'success', time:1})
                         // this.alert({type:'success', message:'SAVED', time:3})
@@ -1618,6 +1782,8 @@
                 }
             },
             csvData: function() {
+                if(this.businesses == undefined)
+                    return ''
                 // var url = ajaxurl+'?action=lead_finder_download&lead_finder_ID='+this.finder.ID
                 // jQuery('<form action="'+ url +'" method="post"></form>')
 		        //     .appendTo('body').submit().remove();
@@ -1706,8 +1872,8 @@
                 })
 
                 filtered_businesses = filtered_businesses.filter(business => {
-                    if(this.filters.phone_type === 'wireless')
-                        return business.business_data.phone_type == 'wireless'
+                    if(this.filters.phone_type === 'mobile')
+                        return business.business_data.phone_type == 'mobile'
                     else if(this.filters.phone_type === 'landline')
                         return business.business_data.phone_type == 'landline'
                     else
@@ -1730,6 +1896,9 @@
             },
             deleteLeadFinder: function() {
                 this.style.modalDelete.display = 'none'
+                this.businesses = []
+
+                this.alert({message: "Deleting..."})
                 var url = ajaxurl+'?action=lead_finder_delete';
                 fetch(url, {
                     method: 'post',
@@ -1739,6 +1908,7 @@
                 }).then((response)=>{
                     return response.json()
                 }).then((data) => {
+                    this.alert({ message: "Done!", type:"success", time:1 })
                     this.finders = data
                     this.finder = {
                         post_title: '',
@@ -1746,6 +1916,87 @@
                     }
                 })
                 return
+            },
+            showVoicemailBlastModal: function() {
+                this.style.modalVoicemailBlast.display = 'block'
+                if(this.finder.voicemail == undefined)
+                    this.finder.voicemail = {}
+                    
+                if(this.show.audio_file_url === 'upload'){
+                    var g = this
+                    Vue.nextTick(function(){
+                        g.createFileUploadBox()
+                    })
+                }
+            },
+            createFileUploadBox: function() {
+                FilePond.registerPlugin(FilePondPluginFileValidateType);
+
+                var uploadUrl = ajaxurl+'?action=lead_finder_upload_audio_file';
+                
+                FilePond.create(document.querySelector('.audiofile'), {
+                    instantUpload: true,
+                    acceptedFileTypes: ['audio/*'],
+                    labelIdle: 'Drag & Drop your audio file or <span class="filepond--label-action"> Browse </span>',
+                    credits: { label: '', url: '' },
+                    server: {
+                        // url: uploadUrl,
+                        process: uploadUrl,
+                        // revert: '/revert.php',
+                        // restore: '/restore.php?id=',
+                        // fetch: '/fetch.php?data='
+                    }
+                })
+
+                const pond = document.querySelector('.audiofile');
+                if(pond != undefined) {
+                    pond.addEventListener('FilePond:processfile', e => {
+                        let file = JSON.parse(e.detail.file.serverId)
+                        console.log("metadata", JSON.parse(e.detail.file.serverId))
+                        this.finder.voicemail.audio_file_url = file.url
+                    })
+                }
+                
+            },
+            closeVoicemailBlastModal: function() {
+                FilePond.destroy(document.querySelector('.audiofile'))
+                this.style.modalVoicemailBlast.display = 'none'
+            },
+            sendVoicemailBlast: function() {
+                var url = ajaxurl+'?action=lead_finder_update_vm_broadcast';
+                let g = this
+                this.finder.voicemail.active = true
+                this.finder.voicemail.list_id = this.finder.ID
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({ ...this.finder })
+                }).then((response)=>{
+                    return response
+                }).then((data)=>{
+                    // g.alert({message:'SAVED', type: 'success', time:2, delay:1})
+                })
+            },
+            stopVoicemailBlast: function() {
+                var url = ajaxurl+'?action=lead_finder_update_vm_broadcast';
+                let g = this
+                this.finder.voicemail.active = false
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({ ...this.finder })
+                }).then((response)=>{
+                    return response
+                }).then((data)=>{
+                    // g.alert({message:'SAVED', type: 'success', time:2, delay:1})
+                })
+            },
+            toggleAudioFile: function(view) {
+                this.show.audio_file_url = view
+                if(view === 'upload'){
+                    var g = this
+                    Vue.nextTick(function(){
+                        g.createFileUploadBox()
+                    })
+                }
             }
         },
         watch: {
@@ -1766,7 +2017,7 @@
             },
             'filters.phone_type': function(newV, oldV) {
                 this.applyFilters()
-            }
+            },
         }
     });
 })();

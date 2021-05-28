@@ -3,19 +3,22 @@
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
 Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
-Version: 1.0.0
+Version: 1.0.1
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
 */
 
 namespace LocalLeadScanner;
+use Twilio\Rest\Client;
+use Twilio\TwiML\VoiceResponse;
+
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.0' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.1' );
 
 
 spl_autoload_register(function ($class) {
@@ -66,9 +69,14 @@ class gpapiscraper {
 		add_shortcode('local-lead-scanner', function($attr){
 			wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
 			wp_enqueue_script( 'vuejs' );
-			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
-			wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
-			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
+			wp_enqueue_script( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ) );
+			wp_enqueue_script( 'fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js' );
+			wp_enqueue_style( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css' );
+			wp_enqueue_script( 'filepond', 'https://unpkg.com/filepond/dist/filepond.min.js' );
+			wp_enqueue_script( 'filepond-jquery', 'https://unpkg.com/jquery-filepond/filepond.jquery.js' );
+			wp_enqueue_script( 'filepond-filetype', 'https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js' );
+			wp_enqueue_style( 'filepond', 'https://unpkg.com/filepond/dist/filepond.css' );
+			wp_enqueue_script( 'momentjs', 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js' );
 			
 			return '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
@@ -83,7 +91,7 @@ class gpapiscraper {
 	}
 }
 
-class LeadFinderApi {
+class LocalLeadScannerPlugin {
 	function __construct() {
 		add_action('init', function () {
 			add_action('wp_ajax_lead_finder_list', array($this, 'get_finders'));
@@ -94,6 +102,7 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
 			add_action('wp_ajax_lead_finder_get_settings', array($this, 'get_settings'));
+			add_action('wp_ajax_nopriv_lead_finder_get_settings', array($this, 'login_required'));
 			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
 			add_action('wp_ajax_lead_finder_download', array($this, 'download'));
 			add_action('wp_ajax_lead_finder_create_key_test', array($this, 'create_key_test'));
@@ -104,6 +113,11 @@ class LeadFinderApi {
 			add_action('wp_ajax_lead_finder_signalwire_update', array($this, 'signalwire_update'));
 			add_action('wp_ajax_lead_finder_twilio_update', array($this, 'twilio_update'));
 			add_action('wp_ajax_lead_finder_cancel', array($this, 'cancel_queries'));
+			add_action('wp_ajax_nopriv_lead_finder_twilio_twiml', array($this, 'twilio_twiml'));
+			add_action('wp_ajax_nopriv_lead_finder_twilio_status_callback', array($this, 'twilio_status_callback'));
+			add_action('wp_ajax_lead_finder_upload_audio_file', array($this, 'upload_audio_file'));
+			add_action('wp_ajax_lead_finder_update_vm_broadcast', array($this, 'update_vm_broadcast'));
+			// add_action('wp_ajax_lead_finder_test', array($this, 'test'));
 		});
 		add_action('admin_menu', function() {
 			add_menu_page(
@@ -116,6 +130,12 @@ class LeadFinderApi {
 				20
 			);
 		});
+	}
+
+	function login_required() {
+		header('Content-Type: application/json');
+		echo(json_encode(array("error" => "Login Required")));
+		die();
 	}
 
 	public function display_plugin_admin_page() {
@@ -147,6 +167,15 @@ class LeadFinderApi {
 			'orderby' => 'title',
 			'order' => 'ASC'
 		));
+
+		foreach($posts as $post) {
+			$voicemail = get_post_meta($post->ID, 'vm_broadcast_settings', true);
+			// $obj = new stdClass();
+			$obj = (object)[];
+			$post->voicemail = $voicemail != '' ? $voicemail : $obj;
+			// $post->voicemail = $voicemail;
+		}
+
 		header('Content-Type: application/json');
 		echo(json_encode($posts));
 		die();
@@ -162,6 +191,7 @@ class LeadFinderApi {
 		
 		// $this->get_finders();
 		$post = get_post($ID);
+		$post->voicemail = (object)[];
 
 		header('Content-Type: application/json');
 		echo(json_encode($post));
@@ -207,7 +237,22 @@ class LeadFinderApi {
 			'posts_per_page' => -1
 		));
 		foreach($posts as $post){
-			$post->business_data = get_post_meta($post->ID, 'business_data', true);
+			$post->meta = get_post_meta($post->ID);
+			$post->business_data = get_post_meta($post->ID, 'business_data', true); //redundant
+			
+			//add the voicemail history
+			$phone_number_post = get_posts(array(
+				'post_type' => 'pp_phone_history',
+				'post_status' => 'publish',
+				'author' => $post->post_author,
+				's' => $post->meta['phone_number'][0]
+			));
+			// $post->test = $phone_number_post;
+			if($phone_number_post)
+				$post->voicemail_history = get_post_meta($phone_number_post[0]->ID, 'voicemail');
+			else
+				$post->voicemail_history = [];
+
 		}
 
 		header('Content-Type: application/json');
@@ -258,7 +303,26 @@ class LeadFinderApi {
 
 		$signalwire = get_user_meta($user_id, 'signalwire', true);
 		$twilio = get_user_meta($user_id, 'lls_twilio', true);
+		$audio_files_meta = get_user_meta($user_id, 'lf_audio_files', true);
+		$audio_files = [];
 
+		//return clean array of files without full file path
+		if(gettype($audio_files_meta) != 'string'){
+			foreach($audio_files_meta as $file){
+				array_push($audio_files, array("url" => $file["url"], "filename" => $file["filename"]));
+			}
+		}
+
+		// get twilio incoming phone numbers
+		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
+		$twilio['phone_numbers'] = [];
+		foreach ($incomingPhoneNumbers as $record) {
+			// error_log(print_r($record, true));
+			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
+		}
+
+		
 		header('Content-Type: application/json');
 		echo(json_encode(array(
 			'google_places_api_key' => $google_places_api_key,
@@ -266,7 +330,8 @@ class LeadFinderApi {
 			'roles' => $roles,
 			'realapikey' => $real_gpapikey,
 			'signalwire' => $signalwire,
-			'twilio' => $twilio
+			'twilio' => $twilio,
+			'audio_files' => $audio_files,
 		)));
 		die();
 	}
@@ -490,8 +555,321 @@ class LeadFinderApi {
 		update_post_meta($_REQUEST['ID'], 'cancel', true);
 		die();
 	}
+
+	function send_voicemail($post, $settings) {
+		
+		// $user_id = get_current_user_id();
+		$twilio = get_user_meta($post->post_author, 'lls_twilio', true);
+
+		$phone_number = $post->meta['phone_number'][0];
+		$from_number = $settings['from_phone_number'];
+		$audio_file_url = $settings['audio_file_url'];
+
+		$ajax_url = admin_url( 'admin-ajax.php' );
+		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".$audio_file_url;
+
+		$twilio_status_callback_url = $ajax_url."?action=lead_finder_twilio_status_callback&ID=".$settings['history_id'];
+
+        $timeout = 4;
+
+		
+		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		// return; 
+
+		try {
+			// first call, ties up line for a few seconds then hangs up
+			$client->account->calls->create(  
+				$phone_number,
+				$from_number,
+				array(
+					"url" => $twiml_url,
+					"timeout" => $timeout,
+					"record" => $settings['record'] == true ? true : false,
+					"statusCallback" => $twilio_status_callback_url,
+					"statusCallbackEvent" => array("answered","completed"),
+					"machineDetection" => "DetectMessageEnd"
+				)
+			);
+			sleep(1);
+			
+			// second call (goes to voicemail)
+			$client->account->calls->create(  
+				$phone_number,
+				$from_number,
+				array(
+					"url" => $twiml_url,
+					"timeout" => $timeout,
+					"record" => $settings['record'] == true ? true : false,
+					"statusCallback" => $twilio_status_callback_url,
+					"statusCallbackEvent" => array("answered","completed"),
+					"machineDetection" => "DetectMessageEnd"
+				)
+			);
+			sleep(1);
+		} catch(Exception $e) {
+			echo 'Caught exception: ',  $e->getMessage(), "\n";
+		}
+
+        return true;
+    }
+
+    public function twilio_twiml(){
+		$response = new VoiceResponse();
+        $AnsweredBy = $_REQUEST["AnsweredBy"];
+		
+        //if not human, play the audio file
+        if($AnsweredBy !== null && $AnsweredBy !== 'human'){	
+            $response->play($_REQUEST['audioFileUrl']);
+		}
+
+		//if human, hangup
+        else {
+            $response->hangup();
+        }   
+
+        header("Content-type: text/xml");
+        echo $response;
+        die();
+    }
+
+    public function twilio_status_callback($request){
+        //update phone number record
+        $ID = $_REQUEST['ID'];
+		
+		$meta = get_metadata_by_mid('post', $ID);
+		$meta->meta_value['status'] = $_REQUEST['CallStatus'];
+		$meta->meta_value['modified'] = $_REQUEST['Timestamp'];
+		if($_REQUEST["RecordingUrl"] != ""){
+			$meta->meta_value['RecordingUrl'] = $_REQUEST['RecordingUrl'];
+        }
+		update_metadata_by_mid('post', $ID, $meta->meta_value);
+
+		// header("Content-type: text/xml");
+        echo "OK";
+        die();
+    }
+
+	function upload_audio_file() {
+		$filename = time() . '-' . $_FILES['audiofile']['name'];
+		// if ($_FILES['fileToUpload']['size'] <= 500000)
+		$result = wp_upload_bits($filename , null, file_get_contents($_FILES['audiofile']['tmp_name']));
+		
+		//save file reference to user meta data
+		$user_id = get_current_user_id();
+		$files_meta = get_user_meta($user_id, 'lf_audio_files', true);
+		
+		$new_files = [];
+		if(gettype($files_meta) != 'string') {
+
+			//loop through existing files to make sure they exist and rebuild the array of files
+			foreach($files_meta as $file){
+				//make sure file exists
+				if(file_exists($file["file"]))
+					array_push($new_files, $file);
+			}
+		}
+
+		array_push($new_files, array("url" => $result['url'], "file" => $result['file'], "filename" => $_FILES['audiofile']['name']));
+		update_user_meta($user_id, 'lf_audio_files', $new_files);
+
+		
+		header('Content-Type: application/json');
+		echo(json_encode($result));
+		die();
+	}
+
+	function update_vm_broadcast() {
+		//update leadfinder record meta to turn on/off a vm broadcast
+
+		$data = json_decode(file_get_contents('php://input'), true);
+		$ID = $data['ID'];
+
+		update_post_meta($ID, 'vm_broadcast_active', $data['voicemail']['active']);
+		update_post_meta($ID, 'vm_broadcast_settings', $data['voicemail']);
+
+		//if turning on, call the run_vm_broadcast
+		if($data['voicemail']['active'] == '1'){
+			$this->run_vm_broadcast($ID);
+		}
+	}
+
+	function run_vm_broadcast($ID = null) {
+		if($ID == null)
+			return;
+		
+		$settings = get_post_meta($ID, 'vm_broadcast_settings', true);
+		// $settings['list_id'] = $ID;
+		// print_r($settings);
+
+		// still running?
+		if($settings['active'] != '1')
+			return;
+
+		// get all businesses with phone_type = 'mobile'
+		$posts = get_posts(array(
+			'post_type' => 'pp_lead_record',
+			'post_status' => 'publish',
+			'post_parent' => $ID,
+			'posts_per_page' => -1,
+			'meta_key' => 'phone_type',
+			'meta_value' => 'mobile'
+		));
+
+		$counter = 0;
+
+		foreach($posts as $post) {
+
+			// look for the next eligible record
+			$post->meta = get_post_meta($post->ID);
+			
+			// add in the voicemail history for this user id and phone number
+			$phone_number_post = get_posts(array(
+				'post_type' => 'pp_phone_history',
+				'post_status' => 'publish',
+				'author' => $post->post_author,
+				's' => $post->meta['phone_number'][0]
+			));
+
+			
+			if(count($phone_number_post) > 0){
+				$phone_history_id = $phone_number_post[0]->ID;
+				$post->meta['voicemail_history'] = get_post_meta($phone_history_id, 'voicemail');
+			} else {
+				$phone_history_id = wp_insert_post(array(
+					'post_title' => $post->meta['phone_number'][0],
+					'post_type' => 'pp_phone_history',
+					'post_status' => 'publish'
+				));
+				$post->meta['voicemail_history'] = '';
+			}
+
+			$send_vm = false;
+			
+			switch($settings['send_to']){
+				// Send to all who haven't received THIS audio
+				case 1:
+					if($this->not_Received_This_Audio($post, $settings)) {
+						echo "\nsend it 1 => ".$post->meta['phone_number'][0];
+						$send_vm = true;
+					}
+					break;
+				case 3:
+					if($this->not_Received_Any_Audio_On_This_List($post, $settings)) {
+						echo "send it 3\n";
+						$send_vm = true;
+					}
+					break;
+				// Send to all who haven't received ANY audio on ANY list
+				case 4:
+					if($this->not_Received_Any_Audio_On_Any_List($post, $settings)) {
+						echo "send it 4\n";
+						$send_vm = true;
+					}
+					break;
+				// Send to all on this list
+				case 5:
+					echo "send it 5\n";
+					$send_vm = true;
+					break;
+				default:
+					echo "do not send\n";
+
+			}
+
+			if($send_vm) {
+
+				//keeping track of vms being generated so we can break out at a max of 30 for this cycle
+				$counter++;
+				
+				// optimistically update vm history to avoid duplicate sends
+				$settings['filename'] = basename($settings['audio_file_url']);
+				$settings['datetime'] = gmdate("Y-m-d G:i:s");
+				$history_id = add_post_meta($phone_history_id, 'voicemail', $settings); 
+				$settings['history_id'] = $history_id;
+				
+				$this->send_voicemail($post, $settings);
+
+			} else {
+				echo "not sending\n";
+			}
+
+			// send up to 30 in this cycle
+			if($counter >= 30)
+				break;
+			
+		}
+
+		//update status if sending less than 30. Means we've reached the end.
+		if($counter < 30) {
+			$settings['active'] = 0;
+			update_post_meta($ID, 'vm_broadcast_settings', $settings);
+		}
+
+	}
+
+	function not_Received_This_Audio($post, $settings) {
+		
+		// check this list specifically
+		$voicemail_history = $post->meta['voicemail_history'];
+
+		// if no history, then it qualifies
+		if(gettype($voicemail_history) == 'string' || count($voicemail_history) < 1)
+			return true;
+
+		// loop through history to check for specic audio
+		foreach($voicemail_history as $item){
+			if(basename($item['audio_file_url']) == basename($settings['audio_file_url']))
+				return false;
+		}
+
+		return true;
+	}
+
+	function not_Received_Any_Audio_On_This_List($post, $settings) {
+		// check this list specifically
+		$voicemail_history = $post->meta['voicemail_history'];
+
+		// if no history, then it qualifies
+		if(gettype($voicemail_history) == 'string' || count($voicemail_history) < 1)
+			return true;
+
+		// loop through history to check for any audio matching this list
+		foreach($voicemail_history as $item){
+			if($item['list_id'] == $settings['list_id'])
+				return false;
+		}
+
+		return true;
+	}
+
+	function not_Received_Any_Audio_On_Any_List($post, $settings) {
+		// check this list specifically
+		$voicemail_history = $post->meta['voicemail_history'];
+
+		// if no history, then it qualifies
+		if(gettype($voicemail_history) == 'string' || count($voicemail_history) < 1)
+			return true;
+
+		return false;
+	}
+
+	function test() {
+		$ID = 32145;
+		$meta = get_metadata_by_mid('post', $ID);
+		print_r($meta->meta_value);
+		$meta->meta_value['status'] = 'complete';
+		update_metadata_by_mid('post', $ID, $meta->meta_value);
+
+		$meta2 = get_metadata_by_mid('post', $ID);
+		print_r($meta2->meta_value);
+		
+		die();
+	}
+	
+
 }
-$lfapi_obj = new LeadFinderApi();
+
+$lfapi_obj = new LocalLeadScannerPlugin();
 
 add_action('wp_ajax_gpapiscraper_scrape', 'LocalLeadScanner\gpapiscraper::scrape');
 add_action('init', 'LocalLeadScanner\gpapiscraper::init');
