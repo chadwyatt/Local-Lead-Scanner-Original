@@ -44,7 +44,7 @@
                                 <div v-if="loadingFinders" style="margin-left:20px;">Loading...</div>
 
                                 <!-- SCANNER NAV ITEMS -->
-                                <div v-for="item in finders" v-on:click="loadFinder(item)" v-if="showFinderInList(item.post_title)">
+                                <div v-for="item in finders" v-on:click="loadFinder(item)" v-if="showFinderInList(item.post_title)" :key="item.ID">
                                     <a v-if="item.ID == finder.ID" v-bind:style="[style.navItem, style.navItemActive]" class="lfNavItem">
                                         <i class="fas fa-map-marker-alt" :style="[style.navItemIconActive]"></i> 
                                         {{decodeHTML(item.post_title)}}
@@ -129,8 +129,10 @@
 
                                 <div v-if="loadingRecords">Loading...</div>
                                 
+                                <div>View: {{ view }}</div>
+
                                 <!-- SCANNER RECORDS -->
-                                <div v-if="view === 'finder' && businesses.length > 0" style="margin-top:30px;">
+                                <div v-if="view === 'finder' && businesses && businesses.length > 0" style="margin-top:30px;">
 
                                     <!-- STATS DASHBOARD -->
                                     <div :style="[style.record, style.shadow]">
@@ -252,6 +254,18 @@
                                                     <span v-if="business.business_data.phone_type == 'mobile'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-mobile-alt"></i></span>
                                                     <span v-if="business.business_data.phone_type != 'mobile'" :title="business.business_data.phone_type" style="margin-left:5px;"><i class="fas fa-phone"></i></span>
                                                 </span>
+                                            </div>
+                                            <div v-for="voicemail in business.voicemail_history" :style="[style.recordText]">
+                                                <i class="fas fa-voicemail"></i> 
+                                                <a :href="voicemail.audio_file_url" target="_blank">
+                                                    {{ voicemail.filename.replace(/^[0-9]+-/, "") }}
+                                                </a>
+                                                <span v-if="voicemail.RecordingUrl">
+                                                    <a :href="voicemail.RecordingUrl" target="_blank" title="Recording">
+                                                        <i class="fas fa-dot-circle"></i> 
+                                                    </a>
+                                                </span>
+                                                {{ moment.utc(voicemail.datetime, "YYYY-MM-DD hh:mm:ss").fromNow() }}
                                             </div>
                                         </div>
                                     </div>
@@ -512,8 +526,7 @@
                             <div>
                                 <label>Recipients <span style="font-size:0.8em;">(mobile only)</span></label>
                                 <select v-bind:style="[style.input, style.inputLarge]" v-model="finder.voicemail.send_to">
-                                    <option value="1">Send to all who haven't received THIS audio on THIS list</option>
-                                    <option value="2">Send to all who haven't received THIS audio on ANY list</option>
+                                    <option value="1">Send to all who haven't received THIS audio</option>
                                     <option value="3">Send to all who haven't received ANY audio on THIS list</option>
                                     <option value="4">Send to all who haven't received ANY audio on ANY list</option>
                                     <option value="5">Send to all on this list</option>
@@ -523,7 +536,7 @@
                             <div>
                                 <label>
                                     <input type="checkbox" v-model="finder.voicemail.record" />
-                                    Record audio of calls for review
+                                    Record calls for review
                                 </label>
                             </div>
                                     
@@ -882,6 +895,8 @@
                 return this.finder.post_title !== '' ? this.finder.post_title : 'New Lead Scanner'
             },
             websiteUrls: function() {
+                if(this.businesses == undefined)
+                    return ''
                 //business that have a website
                 var businesses = this.businesses.filter(business => {
                     return business.business_data.website && business.business_data.website.length > 0
@@ -892,6 +907,8 @@
                 return websites.join("\n")
             },
             phoneNumbers: function() {
+                if(this.businesses == undefined)
+                    return ''
                 //business that have a phone number
                 var businesses = this.businesses.filter(business => {
                     return business.business_data.international_phone_number && business.business_data.international_phone_number.length > 0
@@ -1538,12 +1555,17 @@
                 // this.businesses = []
                 // var url = '/wp-json/lead_finder/records/'+item.ID;
                 var url = ajaxurl+'?action=lead_finder_records&ID='+item.ID
+                var g = this
                 fetch(url)
-                    .then(response => response.json())
+                    .then(response => {
+                        return response.json()
+                    })
                     .then(data => {
-                        this.businesses = data
-                        this.original_businesses = data
-                        this.loadingRecords = false
+                        g.alert({message:"test"})
+                        g.businesses = data
+                        g.original_businesses = data
+                        g.loadingRecords = false
+                        g.view = 'finder'
                     })
             },
             showFinders: function() {
@@ -1760,6 +1782,8 @@
                 }
             },
             csvData: function() {
+                if(this.businesses == undefined)
+                    return ''
                 // var url = ajaxurl+'?action=lead_finder_download&lead_finder_ID='+this.finder.ID
                 // jQuery('<form action="'+ url +'" method="post"></form>')
 		        //     .appendTo('body').submit().remove();
@@ -1942,6 +1966,7 @@
                 var url = ajaxurl+'?action=lead_finder_update_vm_broadcast';
                 let g = this
                 this.finder.voicemail.active = true
+                this.finder.voicemail.list_id = this.finder.ID
                 fetch(url, {
                     method: 'post',
                     body: JSON.stringify({ ...this.finder })
@@ -1992,7 +2017,7 @@
             },
             'filters.phone_type': function(newV, oldV) {
                 this.applyFilters()
-            }
+            },
         }
     });
 })();

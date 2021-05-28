@@ -76,6 +76,7 @@ class gpapiscraper {
 			wp_enqueue_script( 'filepond-jquery', 'https://unpkg.com/jquery-filepond/filepond.jquery.js' );
 			wp_enqueue_script( 'filepond-filetype', 'https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js' );
 			wp_enqueue_style( 'filepond', 'https://unpkg.com/filepond/dist/filepond.css' );
+			wp_enqueue_script( 'momentjs', 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js' );
 			
 			return '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
@@ -112,11 +113,11 @@ class LocalLeadScannerPlugin {
 			add_action('wp_ajax_lead_finder_signalwire_update', array($this, 'signalwire_update'));
 			add_action('wp_ajax_lead_finder_twilio_update', array($this, 'twilio_update'));
 			add_action('wp_ajax_lead_finder_cancel', array($this, 'cancel_queries'));
-			add_action('wp_ajax_lead_finder_send_voicemail', array($this, 'send_voicemail'));
 			add_action('wp_ajax_nopriv_lead_finder_twilio_twiml', array($this, 'twilio_twiml'));
 			add_action('wp_ajax_nopriv_lead_finder_twilio_status_callback', array($this, 'twilio_status_callback'));
 			add_action('wp_ajax_lead_finder_upload_audio_file', array($this, 'upload_audio_file'));
 			add_action('wp_ajax_lead_finder_update_vm_broadcast', array($this, 'update_vm_broadcast'));
+			// add_action('wp_ajax_lead_finder_test', array($this, 'test'));
 		});
 		add_action('admin_menu', function() {
 			add_menu_page(
@@ -236,12 +237,22 @@ class LocalLeadScannerPlugin {
 			'posts_per_page' => -1
 		));
 		foreach($posts as $post){
-			$business_data = get_post_meta($post->ID, 'business_data', true);
-			// if($business_data['phone_type'] == 'wireless') {
-			// 	$business_data['phone_type'] = 'mobile';
-			// 	update_post_meta($post->ID, 'business_data', $business_data);
-			// }
-			$post->business_data = $business_data;
+			$post->meta = get_post_meta($post->ID);
+			$post->business_data = get_post_meta($post->ID, 'business_data', true); //redundant
+			
+			//add the voicemail history
+			$phone_number_post = get_posts(array(
+				'post_type' => 'pp_phone_history',
+				'post_status' => 'publish',
+				'author' => $post->post_author,
+				's' => $post->meta['phone_number'][0]
+			));
+			// $post->test = $phone_number_post;
+			if($phone_number_post)
+				$post->voicemail_history = get_post_meta($phone_number_post[0]->ID, 'voicemail');
+			else
+				$post->voicemail_history = [];
+
 		}
 
 		header('Content-Type: application/json');
@@ -545,69 +556,74 @@ class LocalLeadScannerPlugin {
 		die();
 	}
 
-	function send_voicemail($params){ 
+	function send_voicemail($post, $settings) {
+		
 		// $user_id = get_current_user_id();
-		// $twilio = get_user_meta($user_id, 'lls_twilio', true);
-        // $client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		$twilio = get_user_meta($post->post_author, 'lls_twilio', true);
 
-        $client = new Client($params['account_sid'], $params['auth_token']);
-        
-		$phone_number = $params['phone_number'];
-		$from_number = $params['from_number'];
-		$audio_file_url = $params['audio_url'];
+		$phone_number = $post->meta['phone_number'][0];
+		$from_number = $settings['from_phone_number'];
+		$audio_file_url = $settings['audio_file_url'];
 
 		$ajax_url = admin_url( 'admin-ajax.php' );
 		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".$audio_file_url;
 
-		$twilio_status_callback_url = $ajax_url."?action=lead_finder_twilio_status_callback&ID=";
+		$twilio_status_callback_url = $ajax_url."?action=lead_finder_twilio_status_callback&ID=".$settings['history_id'];
 
         $timeout = 4;
 
-		// TODO: check phone number for recent activity, eliminate dups, etc
-        
-		// first call, ties up line for a few seconds then hangs up
-		$client->account->calls->create(  
-			$phone_number,
-			$from_number,
-			array(
-				"url" => $twiml_url,
-				"timeout" => $timeout,
-				"record" => true,
-				"statusCallback" => $twilio_status_callback_url,
-				"statusCallbackEvent" => array("answered","completed"),
-				"machineDetection" => "DetectMessageEnd"
-			)
-		);
-		sleep(1);
-        
-		// second call (goes to voicemail)
-        $client->account->calls->create(  
-            $phone_number,
-			$from_number,
-			array(
-				"url" => $twiml_url,
-				"timeout" => $timeout,
-				"record" => true,
-				"statusCallback" => $twilio_status_callback_url,
-				"statusCallbackEvent" => array("answered","completed"),
-				"machineDetection" => "DetectMessageEnd"
-			)
-        );
-        sleep(1);
+		
+		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		// return; 
+
+		try {
+			// first call, ties up line for a few seconds then hangs up
+			$client->account->calls->create(  
+				$phone_number,
+				$from_number,
+				array(
+					"url" => $twiml_url,
+					"timeout" => $timeout,
+					"record" => $settings['record'] == true ? true : false,
+					"statusCallback" => $twilio_status_callback_url,
+					"statusCallbackEvent" => array("answered","completed"),
+					"machineDetection" => "DetectMessageEnd"
+				)
+			);
+			sleep(1);
+			
+			// second call (goes to voicemail)
+			$client->account->calls->create(  
+				$phone_number,
+				$from_number,
+				array(
+					"url" => $twiml_url,
+					"timeout" => $timeout,
+					"record" => $settings['record'] == true ? true : false,
+					"statusCallback" => $twilio_status_callback_url,
+					"statusCallbackEvent" => array("answered","completed"),
+					"machineDetection" => "DetectMessageEnd"
+				)
+			);
+			sleep(1);
+		} catch(Exception $e) {
+			echo 'Caught exception: ',  $e->getMessage(), "\n";
+		}
 
         return true;
     }
 
     public function twilio_twiml(){
-		$data = json_decode(file_get_contents('php://input'), true);
-        $response = new VoiceResponse();
-        $AnsweredBy = $data["AnsweredBy"];
-        
+		$response = new VoiceResponse();
+        $AnsweredBy = $_REQUEST["AnsweredBy"];
+		
         //if not human, play the audio file
         if($AnsweredBy !== null && $AnsweredBy !== 'human'){	
             $response->play($_REQUEST['audioFileUrl']);
-        } else {
-            //if human, hangup
+		}
+
+		//if human, hangup
+        else {
             $response->hangup();
         }   
 
@@ -618,15 +634,15 @@ class LocalLeadScannerPlugin {
 
     public function twilio_status_callback($request){
         //update phone number record
-        //add recording url
-        $data = json_decode(file_get_contents('php://input'), true);
-
         $ID = $_REQUEST['ID'];
-        update_post_meta($ID, 'status', $data["CallStatus"]);
-        update_post_meta($ID, 'modified', $data["Timestamp"]);
-        if($data["RecordingUrl"] != ""){
-            update_post_meta($ID, 'RecordingUrl', $data["RecordingUrl"]);
+		
+		$meta = get_metadata_by_mid('post', $ID);
+		$meta->meta_value['status'] = $_REQUEST['CallStatus'];
+		$meta->meta_value['modified'] = $_REQUEST['Timestamp'];
+		if($_REQUEST["RecordingUrl"] != ""){
+			$meta->meta_value['RecordingUrl'] = $_REQUEST['RecordingUrl'];
         }
+		update_metadata_by_mid('post', $ID, $meta->meta_value);
 
 		// header("Content-type: text/xml");
         echo "OK";
@@ -682,6 +698,7 @@ class LocalLeadScannerPlugin {
 			return;
 		
 		$settings = get_post_meta($ID, 'vm_broadcast_settings', true);
+		// $settings['list_id'] = $ID;
 		// print_r($settings);
 
 		// still running?
@@ -698,113 +715,157 @@ class LocalLeadScannerPlugin {
 			'meta_value' => 'mobile'
 		));
 
-		foreach($posts as $post){
+		$counter = 0;
+
+		foreach($posts as $post) {
 
 			// look for the next eligible record
-			// $post->business_data = get_post_meta($post->ID, 'business_data', true);
-			// $post->voicemail_history = get_post_meta($post->ID, 'voicemail_history', true);
 			$post->meta = get_post_meta($post->ID);
-			// print_r($post);
-			// echo "\n\n========\n\n";
-
-			// // if no previous history, send the vm
-			// if(count($voicemail_history) < 1 || $voicemail_history == ''){
-			// 	echo "\nsend vm ".$settings['send_to'];
-			// }
+			
+			// add in the voicemail history for this user id and phone number
+			$phone_number_post = get_posts(array(
+				'post_type' => 'pp_phone_history',
+				'post_status' => 'publish',
+				'author' => $post->post_author,
+				's' => $post->meta['phone_number'][0]
+			));
 
 			
+			if(count($phone_number_post) > 0){
+				$phone_history_id = $phone_number_post[0]->ID;
+				$post->meta['voicemail_history'] = get_post_meta($phone_history_id, 'voicemail');
+			} else {
+				$phone_history_id = wp_insert_post(array(
+					'post_title' => $post->meta['phone_number'][0],
+					'post_type' => 'pp_phone_history',
+					'post_status' => 'publish'
+				));
+				$post->meta['voicemail_history'] = '';
+			}
+
+			$send_vm = false;
+			
 			switch($settings['send_to']){
-				// Send to all who haven't received THIS audio on THIS list
+				// Send to all who haven't received THIS audio
 				case 1:
-					if($this->not_Received_This_Audio_On_This_List($post, $settings)) {
+					if($this->not_Received_This_Audio($post, $settings)) {
 						echo "\nsend it 1 => ".$post->meta['phone_number'][0];
+						$send_vm = true;
 					}
 					break;
-				// Send to all who haven't received THIS audio on ANY list
-				case 2:
-					if($this->not_Received_This_Audio_On_Any_List($post, $settings)) {
-						echo "\nsend it 2 => ".$post->meta['phone_number'][0];
+				case 3:
+					if($this->not_Received_Any_Audio_On_This_List($post, $settings)) {
+						echo "send it 3\n";
+						$send_vm = true;
 					}
 					break;
-				// // Send to all who haven't received ANY audio on THIS list
-				// case 3:
-				// 	if($this->not_Received_Any_Audio_On_This_List()){
-				// 		echo "send it 3\n";
-				// 	}
-				// 	break;
-				// // Send to all who haven't received ANY audio on ANY list
-				// case 4:
-				// 	if($this->not_Received_Any_Audio_On_Any_List()){
-				// 		echo "send it 4\n";
-				// 	}
-				// 	break;
-				// // Send to all on this list
-				// case 5:
-				// 	echo "send it 5\n";
-				// 	break;
+				// Send to all who haven't received ANY audio on ANY list
+				case 4:
+					if($this->not_Received_Any_Audio_On_Any_List($post, $settings)) {
+						echo "send it 4\n";
+						$send_vm = true;
+					}
+					break;
+				// Send to all on this list
+				case 5:
+					echo "send it 5\n";
+					$send_vm = true;
+					break;
 				default:
 					echo "do not send\n";
 
 			}
 
+			if($send_vm) {
+
+				//keeping track of vms being generated so we can break out at a max of 30 for this cycle
+				$counter++;
+				
+				// optimistically update vm history to avoid duplicate sends
+				$settings['filename'] = basename($settings['audio_file_url']);
+				$settings['datetime'] = gmdate("Y-m-d G:i:s");
+				$history_id = add_post_meta($phone_history_id, 'voicemail', $settings); 
+				$settings['history_id'] = $history_id;
+				
+				$this->send_voicemail($post, $settings);
+
+			} else {
+				echo "not sending\n";
+			}
+
+			// send up to 30 in this cycle
+			if($counter >= 30)
+				break;
+			
 		}
-	
+
+		//update status if sending less than 30. Means we've reached the end.
+		if($counter < 30) {
+			$settings['active'] = 0;
+			update_post_meta($ID, 'vm_broadcast_settings', $settings);
+		}
 
 	}
 
-	function not_Received_This_Audio_On_This_List($post, $settings) {
+	function not_Received_This_Audio($post, $settings) {
 		
 		// check this list specifically
 		$voicemail_history = $post->meta['voicemail_history'];
+
+		// if no history, then it qualifies
 		if(gettype($voicemail_history) == 'string' || count($voicemail_history) < 1)
 			return true;
 
-		// check for specic audio
+		// loop through history to check for specic audio
+		foreach($voicemail_history as $item){
+			if(basename($item['audio_file_url']) == basename($settings['audio_file_url']))
+				return false;
+		}
 
-		// if($this->not_Received_Any_Audio_On_Any_List($post, $settings))
-		// 	return true;
-		
-		return false;
-	}
-
-	function not_Received_This_Audio_On_Any_List($post, $settings) {
-		if($this->not_Received_Any_Audio_On_Any_List($post, $settings))
-			return true;
-		return false;
+		return true;
 	}
 
 	function not_Received_Any_Audio_On_This_List($post, $settings) {
-		if($this->not_Received_Any_Audio_On_Any_List($post, $settings))
+		// check this list specifically
+		$voicemail_history = $post->meta['voicemail_history'];
+
+		// if no history, then it qualifies
+		if(gettype($voicemail_history) == 'string' || count($voicemail_history) < 1)
 			return true;
-		return false;
+
+		// loop through history to check for any audio matching this list
+		foreach($voicemail_history as $item){
+			if($item['list_id'] == $settings['list_id'])
+				return false;
+		}
+
+		return true;
 	}
 
 	function not_Received_Any_Audio_On_Any_List($post, $settings) {
-		// get phone record globally for user
-		$user_id = get_current_user_id();
-		$businesses = get_posts(array(
-			'post_type' => 'pp_lead_record',
-			'post_status' => 'publish',
-			'author' => $user_id,
-			'posts_per_page' => -1,
-			'meta_key' => 'phone_number',
-			'meta_value' => $post->meta['phone_number'][0]
-		));
+		// check this list specifically
+		$voicemail_history = $post->meta['voicemail_history'];
 
-		$voicemail_exists = false;
-		foreach($businesses as $business){
-			if($voicemail_exists == false) {
-				$voicemail_history = get_post_meta($business->ID, 'voicemail_history', true);
-				if(gettype($voicemail_history) != 'string' && count($voicemail_history) > 0) {
-					$voicemail_exists = true;
-				}
-			}
-		}
-		
-		return !$voicemail_exists;
+		// if no history, then it qualifies
+		if(gettype($voicemail_history) == 'string' || count($voicemail_history) < 1)
+			return true;
+
+		return false;
 	}
 
+	function test() {
+		$ID = 32145;
+		$meta = get_metadata_by_mid('post', $ID);
+		print_r($meta->meta_value);
+		$meta->meta_value['status'] = 'complete';
+		update_metadata_by_mid('post', $ID, $meta->meta_value);
 
+		$meta2 = get_metadata_by_mid('post', $ID);
+		print_r($meta2->meta_value);
+		
+		die();
+	}
+	
 
 }
 
