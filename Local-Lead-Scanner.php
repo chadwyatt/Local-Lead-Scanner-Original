@@ -102,6 +102,7 @@ class LocalLeadScannerPlugin {
 			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
 			add_action('wp_ajax_lead_finder_get_settings', array($this, 'get_settings'));
+			add_action('wp_ajax_lead_finder_get_twilio_numbers', array($this, 'get_twilio_numbers'));
 			add_action('wp_ajax_nopriv_lead_finder_get_settings', array($this, 'login_required'));
 			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
 			add_action('wp_ajax_lead_finder_download', array($this, 'download'));
@@ -341,14 +342,14 @@ class LocalLeadScannerPlugin {
 			}
 		}
 
-		// get twilio incoming phone numbers
-		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
-		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
-		$twilio['phone_numbers'] = [];
-		foreach ($incomingPhoneNumbers as $record) {
-			// error_log(print_r($record, true));
-			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
-		}
+		// // get twilio incoming phone numbers
+		// $client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		// $incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
+		// $twilio['phone_numbers'] = [];
+		// foreach ($incomingPhoneNumbers as $record) {
+		// 	// error_log(print_r($record, true));
+		// 	array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
+		// }
 
 		
 		header('Content-Type: application/json');
@@ -358,9 +359,23 @@ class LocalLeadScannerPlugin {
 			'roles' => $roles,
 			'realapikey' => $real_gpapikey,
 			'signalwire' => $signalwire,
-			'twilio' => $twilio,
+			// 'twilio' => $twilio,
 			'audio_files' => $audio_files,
 		)));
+		die();
+	}
+
+	function get_twilio_numbers() {
+		// get twilio incoming phone numbers
+		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
+		$twilio['phone_numbers'] = [];
+		foreach ($incomingPhoneNumbers as $record) {
+			// error_log(print_r($record, true));
+			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
+		}
+		header('Content-Type: application/json');
+		echo(json_encode($twilio));
 		die();
 	}
 

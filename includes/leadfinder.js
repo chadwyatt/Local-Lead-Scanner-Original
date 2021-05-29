@@ -1550,7 +1550,7 @@
                     g.license_status = data.license_status
                     g.roles = data.roles
                     g.signalwire = data.signalwire
-                    g.twilio = data.twilio
+                    // g.twilio = data.twilio
                     g.audio_files = data.audio_files
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
@@ -1566,6 +1566,18 @@
                         g.view = 'activate'
                         this.alert({message: "ACTIVATION REQUIRED", text: "Enter a valid license key to activate the plugin."})
                     }
+                })
+
+                url = ajaxurl+'?action=lead_finder_get_twilio_numbers'
+                fetch(url).then((response)=>{
+                    return response.json()
+                }).then((data) => {
+                    if(data.error){
+                        console.error(data.error)
+                        this.alert({ type: "error", message: data.error })
+                        return
+                    }
+                    g.twilio = data
                 })
             },
             loadFinder: function(item) {
