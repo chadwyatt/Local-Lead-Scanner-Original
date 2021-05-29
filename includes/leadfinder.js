@@ -129,8 +129,7 @@
 
                                 <div v-if="loadingRecords">Loading...</div>
                                 
-                                <div>View: {{ view }}</div>
-
+                                
                                 <!-- SCANNER RECORDS -->
                                 <div v-if="view === 'finder' && businesses && businesses.length > 0" style="margin-top:30px;">
 
@@ -439,12 +438,6 @@
                         </div>
                     </div>
 
-                    <div id="myModal" v-bind:style="[style.modal]" v-on:click="style.modal.display = 'none'">
-                        <div v-bind:style="[style.modalContent, style.shadow]">
-                            <span v-bind:style="style.modalClose" v-on:click="style.modal.display = 'none'">&times;</span>
-                            <p v-html="modal_message"></p>
-                        </div>
-                    </div>
                     
                     <!-- COPY DATA MODAL -->
                     <div id="websitesModal" v-bind:style="[style.websitesModal]">
@@ -528,7 +521,7 @@
                                 <select v-bind:style="[style.input, style.inputLarge]" v-model="finder.voicemail.send_to">
                                     <option value="1">Send to all who haven't received THIS audio</option>
                                     <option value="3">Send to all who haven't received ANY audio on THIS list</option>
-                                    <option value="4">Send to all who haven't received ANY audio on ANY list</option>
+                                    <option va  lue="4">Send to all who haven't received ANY audio on ANY list</option>
                                     <option value="5">Send to all on this list</option>
                                 </select>
                             </div>
@@ -572,7 +565,7 @@
                     </div>
 
 
-                    <!-- DELETE MODAL -->
+                    <!-- DEACTIVATE MODAL -->
                     <div id="deactivateModal" v-bind:style="style.deactivateModal">
                         <div v-bind:style="style.modalContent">
                             <span v-bind:style="style.modalClose" v-on:click="style.deactivateModal.display = 'none'">&times;</span>
@@ -682,12 +675,24 @@
                             </table>
                         </div>
                     </div>
+
+
+                    <!-- ALERT MODAL -->
+                    <div id="myModal" v-bind:style="[style.modal]" v-on:click="style.modal.display = 'none'">
+                        <div v-bind:style="[style.modalContent, style.shadow]">
+                            <span v-bind:style="style.modalClose" v-on:click="style.modal.display = 'none'">&times;</span>
+                            <p v-html="modal_message"></p>
+                        </div>
+                    </div>
+
+
                     <div style="clear:both;"></div>
                 </div>
             </div>
         `,
         data: {
             // scannerRunning: false,
+            interval: null,
             show: {
                 audio_file_url: 'upload'
             },
@@ -865,6 +870,7 @@
         mounted: function(){
             this.setStyles()
             this.getSettings()
+            this.createInterval()
         },
         computed: {
             percentMobile: function() {
@@ -923,6 +929,27 @@
             },
         },
         methods: {
+            createInterval: function() {
+                this.runBroadcasts()
+                if(this.interval === null) {
+                    let g = this
+                    this.interval = setInterval(function() {
+                        g.runInterval()
+                    }, 60000)
+                }
+            },
+            runInterval: function() {
+                console.log("do interval stuff")
+                this.loadFinders(false)
+                this.runBroadcasts()
+            },
+            runBroadcasts: function() {
+                var url = ajaxurl+'?action=lead_finder_run_broadcasts';
+                let g = this
+                fetch(url).then((response)=>{
+                    return response.json()
+                }).then((data)=>{})
+            },
             audioFileStyle: function(view) {
                 if(this.show.audio_file_url != view)
                     return {}
@@ -1487,8 +1514,8 @@
                     g.loadFinder(this.finder)            
                 })
             },
-            loadFinders: function() {
-                this.loadingFinders = true
+            loadFinders: function(showLoading = true) {
+                this.loadingFinders = showLoading
                 var url = ajaxurl+'?action=lead_finder_list'
                 fetch(url).then((response)=>{
                     return response.json()
@@ -1561,7 +1588,7 @@
                         return response.json()
                     })
                     .then(data => {
-                        g.alert({message:"test"})
+                        // g.alert({message:"test"})
                         g.businesses = data
                         g.original_businesses = data
                         g.loadingRecords = false
@@ -1615,7 +1642,7 @@
                         this.alert({message:'SAVED', type: 'success', time:1})
                         // this.alert({type:'success', message:'SAVED', time:3})
                         this.finder = data
-                        this.loadFinders()
+                        this.loadFinders(false)
                         this.loadFinder(this.finder)
                         this.view = 'finder'
                     })
@@ -1971,9 +1998,15 @@
                     method: 'post',
                     body: JSON.stringify({ ...this.finder })
                 }).then((response)=>{
-                    return response
+                    return response.json()
                 }).then((data)=>{
-                    // g.alert({message:'SAVED', type: 'success', time:2, delay:1})
+                    if(data.active == 0) {
+                        if(data.count == 0) {
+                            g.alert({ message:'Broadcast Complete', text: 'No matching records found.' })
+                        } else {
+                            g.alert({ message:'Broadcast Complete', text: 'Matching Records: '+data.count, type: 'success' })
+                        }
+                    }
                 })
             },
             stopVoicemailBlast: function() {

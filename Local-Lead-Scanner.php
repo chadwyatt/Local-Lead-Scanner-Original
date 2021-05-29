@@ -3,7 +3,7 @@
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
 Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
-Version: 1.0.1
+Version: 1.0.2
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
 */
@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.1' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.2' );
 
 
 spl_autoload_register(function ($class) {
@@ -57,7 +57,7 @@ class gpapiscraper {
 		$updater = Updater::get_instance();
 		$updater->set_file(__FILE__);
 		$updater->initialize();
-		gpapiscraper::frontend();
+		// gpapiscraper::frontend();
 	}
 		
 	public static function scrape(){
@@ -67,17 +67,17 @@ class gpapiscraper {
 
 	function frontend(){
 		add_shortcode('local-lead-scanner', function($attr){
-			wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
-			wp_enqueue_script( 'vuejs' );
-			wp_enqueue_script( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ) );
-			wp_enqueue_script( 'fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js' );
-			wp_enqueue_style( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css' );
-			wp_enqueue_script( 'filepond', 'https://unpkg.com/filepond/dist/filepond.min.js' );
-			wp_enqueue_script( 'filepond-jquery', 'https://unpkg.com/jquery-filepond/filepond.jquery.js' );
-			wp_enqueue_script( 'filepond-filetype', 'https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js' );
-			wp_enqueue_style( 'filepond', 'https://unpkg.com/filepond/dist/filepond.css' );
-			wp_enqueue_script( 'momentjs', 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js' );
-			
+			// wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
+			// wp_enqueue_script( 'vuejs' );
+			// wp_enqueue_script( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ) );
+			// wp_enqueue_script( 'fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js' );
+			// wp_enqueue_style( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css' );
+			// wp_enqueue_script( 'filepond', 'https://unpkg.com/filepond/dist/filepond.min.js' );
+			// wp_enqueue_script( 'filepond-jquery', 'https://unpkg.com/jquery-filepond/filepond.jquery.js' );
+			// wp_enqueue_script( 'filepond-filetype', 'https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js' );
+			// wp_enqueue_style( 'filepond', 'https://unpkg.com/filepond/dist/filepond.css' );
+			// wp_enqueue_script( 'momentjs', 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js' );
+			$this->enqueue_scripts();
 			return '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
 				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700&display=swap" rel="stylesheet">
@@ -117,6 +117,7 @@ class LocalLeadScannerPlugin {
 			add_action('wp_ajax_nopriv_lead_finder_twilio_status_callback', array($this, 'twilio_status_callback'));
 			add_action('wp_ajax_lead_finder_upload_audio_file', array($this, 'upload_audio_file'));
 			add_action('wp_ajax_lead_finder_update_vm_broadcast', array($this, 'update_vm_broadcast'));
+			add_action('wp_ajax_lead_finder_run_broadcasts', array($this, 'run_broadcasts'));
 			// add_action('wp_ajax_lead_finder_test', array($this, 'test'));
 		});
 		add_action('admin_menu', function() {
@@ -129,6 +130,24 @@ class LocalLeadScannerPlugin {
 				'dashicons-visibility',
 				20
 			);
+		});	
+
+		$this->frontend();
+
+	}
+
+	function frontend(){
+		add_shortcode('local-lead-scanner', function($attr){
+			$this->enqueue_scripts();
+			return '
+				<link rel="preconnect" href="https://fonts.gstatic.com">
+				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700&display=swap" rel="stylesheet">
+				<script>
+					var ajaxurl = "'.admin_url( 'admin-ajax.php' ).'"
+					var lf_admin_page = false
+				</script>
+				<div id="lf-mount"></div>
+			';
 		});
 	}
 
@@ -138,13 +157,20 @@ class LocalLeadScannerPlugin {
 		die();
 	}
 
+	function enqueue_scripts() {
+		wp_enqueue_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
+		wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
+		wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
+		wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
+		wp_enqueue_script( 'filepond', 'https://unpkg.com/filepond/dist/filepond.min.js' );
+		wp_enqueue_script( 'filepond-filetype', 'https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js' );
+		wp_enqueue_style( 'filepond', 'https://unpkg.com/filepond/dist/filepond.css' );
+		wp_enqueue_script( 'momentjs', 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js' );
+	}
+
 	public function display_plugin_admin_page() {
-		wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
-			wp_enqueue_script( 'vuejs' );
-			wp_enqueue_script('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ));
-			wp_enqueue_script('fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js');
-			wp_enqueue_style('leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css');
-			
+			$this->enqueue_scripts();
+
 			echo '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
 				<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700&display=swap" rel="stylesheet">
@@ -159,6 +185,14 @@ class LocalLeadScannerPlugin {
 	}
 
 	function get_finders() {
+		$posts = $this->get_finder_posts();
+		header('Content-Type: application/json');
+		echo(json_encode($posts));
+		die();
+	}
+
+	function get_finder_posts() {
+
 		$posts = get_posts(array(
 			'post_type' => 'gpapiscraper',
 			'post_status' => 'publish',
@@ -171,14 +205,12 @@ class LocalLeadScannerPlugin {
 		foreach($posts as $post) {
 			$voicemail = get_post_meta($post->ID, 'vm_broadcast_settings', true);
 			// $obj = new stdClass();
-			$obj = (object)[];
-			$post->voicemail = $voicemail != '' ? $voicemail : $obj;
+			// $obj = (object)[];
+			$post->voicemail = $voicemail != '' ? $voicemail : [];
 			// $post->voicemail = $voicemail;
 		}
 
-		header('Content-Type: application/json');
-		echo(json_encode($posts));
-		die();
+		return $posts;
 	}
 
 	function create() {
@@ -229,6 +261,8 @@ class LocalLeadScannerPlugin {
 	}
 
 	function records() {
+		global $wpdb;
+
 		$ID = $_REQUEST['ID'];
 		$posts = get_posts(array(
 			'post_type' => 'pp_lead_record',
@@ -240,14 +274,8 @@ class LocalLeadScannerPlugin {
 			$post->meta = get_post_meta($post->ID);
 			$post->business_data = get_post_meta($post->ID, 'business_data', true); //redundant
 			
-			//add the voicemail history
-			$phone_number_post = get_posts(array(
-				'post_type' => 'pp_phone_history',
-				'post_status' => 'publish',
-				'author' => $post->post_author,
-				's' => $post->meta['phone_number'][0]
-			));
-			// $post->test = $phone_number_post;
+			$phone_number_post = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $wpdb->posts WHERE post_title = %s AND post_type = 'pp_phone_history'", $post->meta['phone_number'][0] ) );
+			
 			if($phone_number_post)
 				$post->voicemail_history = get_post_meta($phone_number_post[0]->ID, 'voicemail');
 			else
@@ -689,8 +717,21 @@ class LocalLeadScannerPlugin {
 
 		//if turning on, call the run_vm_broadcast
 		if($data['voicemail']['active'] == '1'){
-			$this->run_vm_broadcast($ID);
+			$obj = $this->run_vm_broadcast($ID);
+			header('Content-Type: application/json');
+			echo(json_encode($obj));
 		}
+		die();
+	}
+
+	function run_broadcasts() {
+		//get all finder records and run broadcast for each active one
+		$posts = $this->get_finder_posts();
+		foreach($posts as $post) {
+			// print_r($post);
+			echo "\nVoicemail: ".$post->voicemail['active'];
+		}
+		die("done!");
 	}
 
 	function run_vm_broadcast($ID = null) {
@@ -749,30 +790,30 @@ class LocalLeadScannerPlugin {
 				// Send to all who haven't received THIS audio
 				case 1:
 					if($this->not_Received_This_Audio($post, $settings)) {
-						echo "\nsend it 1 => ".$post->meta['phone_number'][0];
+						// echo "\nsend it 1 => ".$post->meta['phone_number'][0];
 						$send_vm = true;
 					}
 					break;
 				case 3:
 					if($this->not_Received_Any_Audio_On_This_List($post, $settings)) {
-						echo "send it 3\n";
+						// echo "send it 3\n";
 						$send_vm = true;
 					}
 					break;
 				// Send to all who haven't received ANY audio on ANY list
 				case 4:
 					if($this->not_Received_Any_Audio_On_Any_List($post, $settings)) {
-						echo "send it 4\n";
+						// echo "send it 4\n";
 						$send_vm = true;
 					}
 					break;
 				// Send to all on this list
 				case 5:
-					echo "send it 5\n";
+					// echo "send it 5\n";
 					$send_vm = true;
 					break;
 				default:
-					echo "do not send\n";
+					// echo "do not send\n";
 
 			}
 
@@ -787,10 +828,10 @@ class LocalLeadScannerPlugin {
 				$history_id = add_post_meta($phone_history_id, 'voicemail', $settings); 
 				$settings['history_id'] = $history_id;
 				
-				$this->send_voicemail($post, $settings);
+				// $this->send_voicemail($post, $settings);
 
 			} else {
-				echo "not sending\n";
+				// echo "not sending\n";
 			}
 
 			// send up to 30 in this cycle
@@ -802,8 +843,20 @@ class LocalLeadScannerPlugin {
 		//update status if sending less than 30. Means we've reached the end.
 		if($counter < 30) {
 			$settings['active'] = 0;
-			update_post_meta($ID, 'vm_broadcast_settings', $settings);
+			// update_post_meta($ID, 'vm_broadcast_settings', $settings);
+			$status = "complete";
+			$active = 0;
+		} else {
+			$status = "running";
+			$active = 1;
 		}
+
+		$obj = (object)[];
+		$obj->status = $status;
+		$obj->active = $active;
+		$obj->count = $counter;
+
+		return $obj;
 
 	}
 
