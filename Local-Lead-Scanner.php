@@ -3,7 +3,7 @@
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
 Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
-Version: 1.0.1
+Version: 1.0.2
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
 */
@@ -185,6 +185,14 @@ class LocalLeadScannerPlugin {
 	}
 
 	function get_finders() {
+		$posts = $this->get_finder_posts();
+		header('Content-Type: application/json');
+		echo(json_encode($posts));
+		die();
+	}
+
+	function get_finder_posts() {
+
 		$posts = get_posts(array(
 			'post_type' => 'gpapiscraper',
 			'post_status' => 'publish',
@@ -197,14 +205,12 @@ class LocalLeadScannerPlugin {
 		foreach($posts as $post) {
 			$voicemail = get_post_meta($post->ID, 'vm_broadcast_settings', true);
 			// $obj = new stdClass();
-			$obj = (object)[];
-			$post->voicemail = $voicemail != '' ? $voicemail : $obj;
+			// $obj = (object)[];
+			$post->voicemail = $voicemail != '' ? $voicemail : [];
 			// $post->voicemail = $voicemail;
 		}
 
-		header('Content-Type: application/json');
-		echo(json_encode($posts));
-		die();
+		return $posts;
 	}
 
 	function create() {
@@ -255,6 +261,8 @@ class LocalLeadScannerPlugin {
 	}
 
 	function records() {
+		global $wpdb;
+
 		$ID = $_REQUEST['ID'];
 		$posts = get_posts(array(
 			'post_type' => 'pp_lead_record',
@@ -266,24 +274,12 @@ class LocalLeadScannerPlugin {
 			$post->meta = get_post_meta($post->ID);
 			$post->business_data = get_post_meta($post->ID, 'business_data', true); //redundant
 			
-			//add the voicemail history
-			$phone_number_post = get_posts(array(
-				'post_type' => 'pp_phone_history',
-				'post_status' => 'publish',
-				'author' => $post->post_author,
-				's' => $post->meta['phone_number'][0]
-			));
-			$post->test = $phone_number_post;
+			$phone_number_post = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $wpdb->posts WHERE post_title = %s AND post_type = 'pp_phone_history'", $post->meta['phone_number'][0] ) );
+			
 			if($phone_number_post)
 				$post->voicemail_history = get_post_meta($phone_number_post[0]->ID, 'voicemail');
 			else
 				$post->voicemail_history = [];
-			// $obj = (object)[];
-			// $obj->audio_file_url = "https://audiofile.com/1234-file.mp3";
-			// $obj->filename = "1234-file.mp3";
-			// $obj->RecordingUrl = "https://recording.com/123-abc.mp3";
-			// $obj->datetime = "2021-05-29 10:05:31";
-			// $post->voicemail_history = [$obj];
 
 		}
 
@@ -721,12 +717,21 @@ class LocalLeadScannerPlugin {
 
 		//if turning on, call the run_vm_broadcast
 		if($data['voicemail']['active'] == '1'){
-			$this->run_vm_broadcast($ID);
+			$obj = $this->run_vm_broadcast($ID);
+			header('Content-Type: application/json');
+			echo(json_encode($obj));
 		}
+		die();
 	}
 
 	function run_broadcasts() {
-		die("done");
+		//get all finder records and run broadcast for each active one
+		$posts = $this->get_finder_posts();
+		foreach($posts as $post) {
+			// print_r($post);
+			echo "\nVoicemail: ".$post->voicemail['active'];
+		}
+		die("done!");
 	}
 
 	function run_vm_broadcast($ID = null) {
@@ -823,7 +828,7 @@ class LocalLeadScannerPlugin {
 				$history_id = add_post_meta($phone_history_id, 'voicemail', $settings); 
 				$settings['history_id'] = $history_id;
 				
-				$this->send_voicemail($post, $settings);
+				// $this->send_voicemail($post, $settings);
 
 			} else {
 				// echo "not sending\n";
@@ -838,7 +843,7 @@ class LocalLeadScannerPlugin {
 		//update status if sending less than 30. Means we've reached the end.
 		if($counter < 30) {
 			$settings['active'] = 0;
-			update_post_meta($ID, 'vm_broadcast_settings', $settings);
+			// update_post_meta($ID, 'vm_broadcast_settings', $settings);
 			$status = "complete";
 			$active = 0;
 		} else {
@@ -851,9 +856,7 @@ class LocalLeadScannerPlugin {
 		$obj->active = $active;
 		$obj->count = $counter;
 
-		header('Content-Type: application/json');
-		echo(json_encode($obj));
-		die();
+		return $obj;
 
 	}
 

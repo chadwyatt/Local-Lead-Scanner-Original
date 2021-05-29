@@ -930,6 +930,7 @@
         },
         methods: {
             createInterval: function() {
+                this.runBroadcasts()
                 if(this.interval === null) {
                     let g = this
                     this.interval = setInterval(function() {
