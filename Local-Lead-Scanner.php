@@ -331,7 +331,6 @@ class LocalLeadScannerPlugin {
 			$google_places_api_key = false;
 
 		$signalwire = get_user_meta($user_id, 'signalwire', true);
-		$twilio = get_user_meta($user_id, 'lls_twilio', true);
 		$audio_files_meta = get_user_meta($user_id, 'lf_audio_files', true);
 		$audio_files = [];
 
@@ -367,6 +366,7 @@ class LocalLeadScannerPlugin {
 
 	function get_twilio_numbers() {
 		// get twilio incoming phone numbers
+		$twilio = get_user_meta(get_current_user_id(), 'lls_twilio', true);
 		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
 		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
 		$twilio['phone_numbers'] = [];
@@ -592,6 +592,7 @@ class LocalLeadScannerPlugin {
 		$user_id = get_current_user_id();
 		$data = json_decode(file_get_contents('php://input'), true);
 		update_user_meta($user_id, 'lls_twilio', $data['twilio']);
+		$this->get_twilio_numbers();
 	}
 
 	function cancel_queries() {

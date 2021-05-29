@@ -419,15 +419,10 @@
                                             <h3 :style="[style.heading]">Twilio</h3>
                                             <p>You can optionally enable an twilio for voicemail broadcasts and phone type (mobile, voip, or landline) lookups. You will need the following information from your <a href="https://www.twilio.com/referral/kvWmLr" target="_blank">twilio.com</a> account.</p>
 
-                                            <div style="margin:20px 0px">
-                                                <h5 :style="[style.heading]">Phone Type Lookup Active</h5>
-                                                <label><input type="checkbox" v-model="twilio.active" /> Active</label>
-                                            </div>
-
                                             <label>Account SID</label>
                                             <input v-model="twilio.account_sid" v-bind:style="[style.input, style.inputLarge]" />
                                             
-                                            <label>Auth oken</label>
+                                            <label>Auth Token</label>
                                             <input v-model="twilio.auth_token" v-bind:style="[style.input, style.inputLarge]" />
 
                                             <button v-on:click="saveTwilioSettings" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight, style.marginTop20]">Save Settings</button>
@@ -1441,8 +1436,9 @@
                         twilio: this.twilio
                     })
                 }).then((response)=>{
-                    return response
+                    return response.json()
                 }).then((data)=>{
+                    g.twilio = data
                     g.alert({message:'SAVED', type: 'success', time:2, delay:1})
                 })
             },
@@ -1957,6 +1953,15 @@
                 return
             },
             showVoicemailBlastModal: function() {
+
+                if(this.twilio.account_sid == '' || this.twilio.auth_token == ''){
+                    this.alert({message:"Twilio Account Setup Required", type: "danger", text: "Please go to Settings &gt; Twilio to add your twilio credentials in order to enable voicemail broadcasting."})
+                    return
+                } else if(this.twilio.phone_numbers.length < 0) {
+                    this.alert({message:"Twilio Phone Number Required", type: "danger", text: "A twilio phone number is required to send voicemails. You can purchase a phone number in your twilio.com account."})
+                    return
+                }
+
                 this.style.modalVoicemailBlast.display = 'block'
                 if(this.finder.voicemail == undefined)
                     this.finder.voicemail = {}
