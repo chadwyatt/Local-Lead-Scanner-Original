@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.1' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.2' );
 
 
 spl_autoload_register(function ($class) {
