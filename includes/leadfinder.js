@@ -1969,6 +1969,9 @@
                     return
                 }
 
+                if(this.finder.voicemail.audio_file_url != '' && this.finder.voicemail.audio_file_url != undefined)
+                    this.show.audio_file_url = 'select'
+
                 this.style.modalVoicemailBlast.display = 'block'
                 if(this.finder.voicemail == undefined)
                     this.finder.voicemail = {}
