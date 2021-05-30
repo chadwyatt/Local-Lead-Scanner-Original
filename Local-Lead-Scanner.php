@@ -3,7 +3,7 @@
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
 Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
-Version: 1.0.3
+Version: 1.0.4
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
 */
@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.3' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.4' );
 
 
 spl_autoload_register(function ($class) {
@@ -108,6 +108,7 @@ class LocalLeadScannerPlugin {
 			add_action('wp_ajax_lead_finder_upload_audio_file', array($this, 'upload_audio_file'));
 			add_action('wp_ajax_lead_finder_update_vm_broadcast', array($this, 'update_vm_broadcast'));
 			add_action('wp_ajax_lead_finder_run_broadcasts', array($this, 'run_broadcasts'));
+			add_action('wp_ajax_lead_finder_test_vm_broadcast', array($this, 'test_vm_broadcast'));
 			// add_action('wp_ajax_lead_finder_test', array($this, 'test'));
 		});
 		add_action('admin_menu', function() {
@@ -347,11 +348,21 @@ class LocalLeadScannerPlugin {
 	function get_twilio_numbers() {
 		// get twilio incoming phone numbers
 		$twilio = get_user_meta(get_current_user_id(), 'lls_twilio', true);
-		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
-		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
+		// $client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		// $incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
+
+		$url = sprintf("https://%s:%s@api.twilio.com/2010-04-01/Accounts/%s/IncomingPhoneNumbers.json?PageSize=1000", 
+					$twilio['account_sid'], 
+					$twilio['auth_token'],
+					$twilio['account_sid'] 
+				);
+		$request = wp_remote_get($url);
+		$data = wp_remote_retrieve_body($request);
+		$data = json_decode($data, true);
+		
 		$twilio['phone_numbers'] = [];
-		foreach ($incomingPhoneNumbers as $record) {
-			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
+		foreach ($data['incoming_phone_numbers'] as $record) {
+			array_push($twilio['phone_numbers'], array("sid" => $record['sid'], "phoneNumber" => $record['phone_number'], "friendlyName" => $record['friendly_name']));
 		}
 		header('Content-Type: application/json');
 		echo(json_encode($twilio));
@@ -569,7 +580,6 @@ class LocalLeadScannerPlugin {
 
 	function send_voicemail($post, $settings) {
 		
-		// $user_id = get_current_user_id();
 		$twilio = get_user_meta($post->post_author, 'lls_twilio', true);
 
 		$phone_number = $post->meta['phone_number'][0];
@@ -583,64 +593,62 @@ class LocalLeadScannerPlugin {
 
         $timeout = 4;
 
-		
-		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
-		// return; 
+		$url = sprintf('https://%s:%s@api.twilio.com/2010-04-01/Accounts/%s/Calls.json',
+			$twilio['account_sid'], 
+			$twilio['auth_token'],
+			$twilio['account_sid']
+		);
 
+		$args = array(
+			'body' => array(
+				"To" => $phone_number,
+				"From" => $from_number,
+				"Url" => $twiml_url,
+				"Timeout" => $timeout,
+				"Record" => $settings['record'] == true ? true : false,
+				"StatusCallback" => $twilio_status_callback_url,
+				"StatusCallbackEvent" => "answered,completed",
+				"MachineDetection" => "DetectMessageEnd"
+			)
+		);
+		
 		try {
 			// first call, ties up line for a few seconds then hangs up
-			$client->account->calls->create(  
-				$phone_number,
-				$from_number,
-				array(
-					"url" => $twiml_url,
-					"timeout" => $timeout,
-					"record" => $settings['record'] == true ? true : false,
-					"statusCallback" => $twilio_status_callback_url,
-					"statusCallbackEvent" => array("answered","completed"),
-					"machineDetection" => "DetectMessageEnd"
-				)
-			);
+			$request = wp_remote_post($url, $args);
 			sleep(1);
 			
 			// second call (goes to voicemail)
-			$client->account->calls->create(  
-				$phone_number,
-				$from_number,
-				array(
-					"url" => $twiml_url,
-					"timeout" => $timeout,
-					"record" => $settings['record'] == true ? true : false,
-					"statusCallback" => $twilio_status_callback_url,
-					"statusCallbackEvent" => array("answered","completed"),
-					"machineDetection" => "DetectMessageEnd"
-				)
-			);
+			$request = wp_remote_post($url, $args);
 			sleep(1);
+
 		} catch(Exception $e) {
 			echo 'Caught exception: ',  $e->getMessage(), "\n";
 		}
-
-        return true;
+		return true;
     }
 
     public function twilio_twiml(){
-		$response = new VoiceResponse();
+		// $response = new VoiceResponse();
         $AnsweredBy = $_REQUEST["AnsweredBy"];
 		
+		header("Content-type: text/xml");
+
         //if not human, play the audio file
         if($AnsweredBy !== null && $AnsweredBy !== 'human'){	
-            $response->play($_REQUEST['audioFileUrl']);
+            echo '<?xml version="1.0" encoding="UTF-8"?>
+			<Response>
+				<Play>'.$_REQUEST['audioFileUrl'].'</Play>
+			</Response>';
 		}
 
 		//if human, hangup
         else {
-            $response->hangup();
+            echo '<?xml version="1.0" encoding="UTF-8"?>
+				<Response>
+					<Hangup />
+				</Response>';
         }   
-
-        header("Content-type: text/xml");
-        echo $response;
-        die();
+		die();
     }
 
     public function twilio_status_callback($request){
@@ -707,6 +715,60 @@ class LocalLeadScannerPlugin {
 		}
 		header('Content-Type: application/json');
 		echo(json_encode($obj));
+		die();
+	}
+
+	function test_vm_broadcast() {
+		$data = json_decode(file_get_contents('php://input'), true);
+		$ID = $data['ID'];
+
+		$twilio = get_user_meta(get_current_user_id(), 'lls_twilio', true);
+
+		$phone_number = $data['voicemail']['test_number'];
+		$from_number = $data['voicemail']['from_phone_number'];
+		$audio_file_url = $data['voicemail']['audio_file_url'];
+
+		$ajax_url = admin_url( 'admin-ajax.php' );
+		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".$audio_file_url;
+
+		$twilio_status_callback_url = $ajax_url."?action=lead_finder_twilio_status_callback&ID=".$settings['history_id'];
+
+        $timeout = 4;
+
+		$url = sprintf('https://%s:%s@api.twilio.com/2010-04-01/Accounts/%s/Calls.json',
+			$twilio['account_sid'], 
+			$twilio['auth_token'],
+			$twilio['account_sid']
+		);
+
+		$args = array(
+			'body' => array(
+				"To" => $phone_number,
+				"From" => $from_number,
+				"Url" => $twiml_url,
+				"Timeout" => $timeout,
+				"Record" => $settings['record'] == true ? true : false,
+				"StatusCallback" => $twilio_status_callback_url,
+				"StatusCallbackEvent" => "answered,completed",
+				"MachineDetection" => "DetectMessageEnd"
+			)
+		);
+		
+		try {
+			// first call, ties up line for a few seconds then hangs up
+			$request = wp_remote_post($url, $args);
+			sleep(1);
+			
+			// second call (goes to voicemail)
+			$request = wp_remote_post($url, $args);
+			sleep(1);
+
+		} catch(Exception $e) {
+			echo 'Caught exception: ',  $e->getMessage(), "\n";
+		}
+
+		header('Content-Type: application/json');
+		echo("OK");
 		die();
 	}
 
@@ -799,7 +861,6 @@ class LocalLeadScannerPlugin {
 					break;
 				default:
 					
-
 			}
 
 			//send only if last vm for this phone number was sent more than 60 minutes ago, to avoid dups/mistakes, etc
@@ -822,7 +883,7 @@ class LocalLeadScannerPlugin {
 				update_post_meta($phone_history_id, 'last_vm_sent_timestamp', time());
 				
 				//TODO: temp disable for testing
-				// $this->send_voicemail($post, $settings);
+				$this->send_voicemail($post, $settings);
 
 			}
 
