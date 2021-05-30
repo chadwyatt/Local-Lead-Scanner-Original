@@ -1148,7 +1148,9 @@
                         fontWeight: 'bold',
                         cursor: 'pointer',
                         borderRadius: '4px',
-                        lineHeight: 'unset'
+                        lineHeight: 'unset',
+                        textDecoration: 'none',
+                        fontSize: '14px'
                     },
                     btnLarge: {
                         padding: '10px 25px'
