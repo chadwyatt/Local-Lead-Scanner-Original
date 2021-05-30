@@ -934,15 +934,18 @@
                 }
             },
             runInterval: function() {
-                console.log("do interval stuff")
+                // console.log("do interval stuff")
                 this.loadFinders(false)
                 this.runBroadcasts()
+                if(this.finder.voicemail.active == '1' || this.finder.voicemail.active == true){
+                    this.loadFinder(this.finder)
+                }
             },
             runBroadcasts: function() {
                 var url = ajaxurl+'?action=lead_finder_run_broadcasts';
                 let g = this
                 fetch(url).then((response)=>{
-                    return response.json()
+                    return response
                 }).then((data)=>{})
             },
             audioFileStyle: function(view) {
@@ -1481,8 +1484,12 @@
                 }).then((data) => {
                     if(data.license_status == 'active'){
                         this.license_status = 'active'
-                        this.getSettings()
+                        
                         this.alert({message: "Plugin Activated", type:"success", time: 2, delay: 1})
+                        var g = this
+                        setTimeout(function() {
+                            g.getSettings()
+                        }, 2500)
                     } else {
                         // this.flashModal("Error: "+data.message)
                         this.alert({message: data.message, type: "error", delay:1})
@@ -2009,11 +2016,11 @@
             sendVoicemailBlast: function() {
                 var url = ajaxurl+'?action=lead_finder_update_vm_broadcast';
                 let g = this
-                this.finder.voicemail.active = true
-                this.finder.voicemail.list_id = this.finder.ID
+                g.finder.voicemail.active = true
+                g.finder.voicemail.list_id = g.finder.ID
                 fetch(url, {
                     method: 'post',
-                    body: JSON.stringify({ ...this.finder })
+                    body: JSON.stringify({ ...g.finder })
                 }).then((response)=>{
                     return response.json()
                 }).then((data)=>{
@@ -2023,6 +2030,7 @@
                         } else {
                             g.alert({ message:'Broadcast Complete', text: 'Matching Records: '+data.count, type: 'success' })
                         }
+                        g.finder.voicemail.active = false
                     }
                 })
             },
