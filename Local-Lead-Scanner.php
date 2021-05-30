@@ -500,15 +500,27 @@ class LocalLeadScannerPlugin {
             update_option('lead_finder_license_status', 'active');
 			$result = array(
 				'license_status' => 'active'
-			);	
+			);
         } else {
             //Show error to the user. Probably entered incorrect license key.            
             //Uncomment the followng line to see the message that returned from the license server
             // echo '<br />The following message was returned from the server: '.$license_data->message;
-			$result = array(
-				'license_status' => '',
-				'message' => $license_data->message
-			);
+
+			//already registered on same domain? Thats OK, so let's activate it again locally.
+			if($license_data->error_code == 40){
+				update_option('lead_finder_license_key', $license_key);
+				update_option('lead_finder_license_status', 'active');
+				$result = array(
+					'license_status' => 'active'
+				);
+			} else {
+				$result = array(
+					'license_status' => '',
+					'message' => $license_data->message,
+					'data' => $license_data->error_code
+				);
+			}
+			
         }
 		header('Content-Type: application/json');
 		echo(json_encode($result));

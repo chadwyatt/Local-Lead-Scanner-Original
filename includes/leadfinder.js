@@ -64,6 +64,14 @@
 
                                 <!-- SCANNER FORM -->
                                 <div v-if="view !== 'settings'">
+                                    
+                                    <!-- TWILIO SETTINGS ALERT -->
+                                    <div v-if="twilio.account_sid == undefined || twilio.auth_token == undefined || twilio.account_sid.length < 1 || twilio.auth_token.length < 1" :style="[style.notification, style.notificationDanger]">
+                                        <button v-on:click="view = 'settings'; settings_view = 'twilio';" :style="[style.btn, style.btnSmall, style.floatRight]">Update</button>
+                                        <i class="fas fa-exclamation-circle" style="margin-left:15px;margin-right:5px;color:red;"></i>
+                                        Twilio settings missing.
+                                    </div>
+
                                     <a v-if="finder.ID > 0 && view !== 'settings'" v-on:click="confirmDelete" style="float:right;cursor:pointer;color:red;margin-right:15px;">Delete</a>
                                     <h2 v-bind:style="[style.heading, style.mainTitle]">{{decodeHTML(finderTitle)}}</h2>
                                     <div v-bind:style="[style.record, style.shadow]">
@@ -994,6 +1002,14 @@
             setStyles: function() {
                 // this.theme = 'dark'
                 this.style = {
+                    notification: {
+                        borderRadius: '10px',
+                        padding: '15px'
+                    },
+                    notificationDanger: {
+                        backgroundColor: 'rgb(251 205 205)',
+                        border: '1px solid red',
+                    },
                     fontWeight: 'bold',
                     fontSize: '24px',
                     wrapper: {
@@ -1187,6 +1203,12 @@
                     },
                     btnLarge: {
                         padding: '10px 25px'
+                    },
+                    btnSmall: {
+                        padding: '3px 5px',
+                        fontSize: '12px',
+                        fontWeight: 'normal',
+                        marginTop: '-2px'
                     },
                     btnPrimary: {
                         color: this.colors[this.theme].button.primary.text,
@@ -2002,7 +2024,7 @@
                 if(this.twilio.account_sid == '' || this.twilio.auth_token == ''){
                     this.alert({message:"Twilio Account Setup Required", type: "error", text: "Please go to Settings &gt; Twilio to add your twilio credentials in order to enable voicemail broadcasting."})
                     return
-                } else if(this.twilio.phone_numbers.length < 0) {
+                } else if(this.twilio.phone_numbers == undefined || this.twilio.phone_numbers.length < 0) {
                     this.alert({message:"Twilio Phone Number Required", type: "error", text: "A twilio phone number is required to send voicemails. You can purchase a phone number in your twilio.com account."})
                     return
                 }
