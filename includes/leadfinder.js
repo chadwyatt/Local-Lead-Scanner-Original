@@ -1734,7 +1734,7 @@
                         icon = 'fa-check-circle'
                         break;
                     case 'error':
-                        icon = 'fa-exclamation-circle'
+                         icon = 'fa-exclamation-circle'
                         break;
                     default:
                         type = 'info'
@@ -1962,10 +1962,10 @@
             showVoicemailBlastModal: function() {
 
                 if(this.twilio.account_sid == '' || this.twilio.auth_token == ''){
-                    this.alert({message:"Twilio Account Setup Required", type: "danger", text: "Please go to Settings &gt; Twilio to add your twilio credentials in order to enable voicemail broadcasting."})
+                    this.alert({message:"Twilio Account Setup Required", type: "error", text: "Please go to Settings &gt; Twilio to add your twilio credentials in order to enable voicemail broadcasting."})
                     return
                 } else if(this.twilio.phone_numbers.length < 0) {
-                    this.alert({message:"Twilio Phone Number Required", type: "danger", text: "A twilio phone number is required to send voicemails. You can purchase a phone number in your twilio.com account."})
+                    this.alert({message:"Twilio Phone Number Required", type: "error", text: "A twilio phone number is required to send voicemails. You can purchase a phone number in your twilio.com account."})
                     return
                 }
 
@@ -2014,6 +2014,23 @@
                 this.style.modalVoicemailBlast.display = 'none'
             },
             sendVoicemailBlast: function() {
+                //check form
+                if(this.finder.voicemail.from_phone_number == '' || this.finder.voicemail.from_phone_number == undefined) {
+                    this.alert({ message: 'A "From Twilio Phone Number" is required', type: "error", time: 3 })
+                    return
+                }
+
+                if(this.finder.voicemail.audio_file_url == '' || this.finder.voicemail.audio_file_url == undefined) {
+                    this.alert({ message: 'An audio file is required', type: "error", time: 3 })
+                    return
+                }
+                
+                if(this.finder.voicemail.send_to == '' || this.finder.voicemail.send_to == undefined) {
+                    this.alert({ message: 'Please select the recipients.', type: "error", time: 3 })
+                    return
+                }
+
+
                 var url = ajaxurl+'?action=lead_finder_update_vm_broadcast';
                 let g = this
                 g.finder.voicemail.active = true
