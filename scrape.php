@@ -122,7 +122,7 @@ function get_details($b){
 	// }
 
 	$twilio = get_user_meta($user_id, 'lls_twilio', true);
-	if($twilio['active'] == 1 && $twilio['account_sid'] != '' && $twilio['auth_token'] != ''){
+	if($twilio['account_sid'] != '' && $twilio['auth_token'] != ''){
 		$url = sprintf('https://lookups.twilio.com/v1/PhoneNumbers/%s?Type=carrier', $phone);
 		$basicauth = 'Basic ' . base64_encode( $twilio['account_sid'].':'.$twilio['auth_token'] );
 		$lookup = wp_remote_get($url, array('headers' => array('Authorization' => $basicauth)));

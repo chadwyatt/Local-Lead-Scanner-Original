@@ -419,15 +419,10 @@
                                             <h3 :style="[style.heading]">Twilio</h3>
                                             <p>You can optionally enable an twilio for voicemail broadcasts and phone type (mobile, voip, or landline) lookups. You will need the following information from your <a href="https://www.twilio.com/referral/kvWmLr" target="_blank">twilio.com</a> account.</p>
 
-                                            <div style="margin:20px 0px">
-                                                <h5 :style="[style.heading]">Phone Type Lookup Active</h5>
-                                                <label><input type="checkbox" v-model="twilio.active" /> Active</label>
-                                            </div>
-
                                             <label>Account SID</label>
                                             <input v-model="twilio.account_sid" v-bind:style="[style.input, style.inputLarge]" />
                                             
-                                            <label>Auth oken</label>
+                                            <label>Auth Token</label>
                                             <input v-model="twilio.auth_token" v-bind:style="[style.input, style.inputLarge]" />
 
                                             <button v-on:click="saveTwilioSettings" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight, style.marginTop20]">Save Settings</button>
@@ -939,15 +934,18 @@
                 }
             },
             runInterval: function() {
-                console.log("do interval stuff")
+                // console.log("do interval stuff")
                 this.loadFinders(false)
                 this.runBroadcasts()
+                if(this.finder.voicemail.active == '1' || this.finder.voicemail.active == true){
+                    this.loadFinder(this.finder)
+                }
             },
             runBroadcasts: function() {
                 var url = ajaxurl+'?action=lead_finder_run_broadcasts';
                 let g = this
                 fetch(url).then((response)=>{
-                    return response.json()
+                    return response
                 }).then((data)=>{})
             },
             audioFileStyle: function(view) {
@@ -1150,7 +1148,9 @@
                         fontWeight: 'bold',
                         cursor: 'pointer',
                         borderRadius: '4px',
-                        lineHeight: 'unset'
+                        lineHeight: 'unset',
+                        textDecoration: 'none',
+                        fontSize: '14px'
                     },
                     btnLarge: {
                         padding: '10px 25px'
@@ -1441,8 +1441,9 @@
                         twilio: this.twilio
                     })
                 }).then((response)=>{
-                    return response
+                    return response.json()
                 }).then((data)=>{
+                    g.twilio = data
                     g.alert({message:'SAVED', type: 'success', time:2, delay:1})
                 })
             },
@@ -1485,8 +1486,12 @@
                 }).then((data) => {
                     if(data.license_status == 'active'){
                         this.license_status = 'active'
-                        this.getSettings()
+                        
                         this.alert({message: "Plugin Activated", type:"success", time: 2, delay: 1})
+                        var g = this
+                        setTimeout(function() {
+                            g.getSettings()
+                        }, 2500)
                     } else {
                         // this.flashModal("Error: "+data.message)
                         this.alert({message: data.message, type: "error", delay:1})
@@ -1550,7 +1555,7 @@
                     g.license_status = data.license_status
                     g.roles = data.roles
                     g.signalwire = data.signalwire
-                    g.twilio = data.twilio
+                    // g.twilio = data.twilio
                     g.audio_files = data.audio_files
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
@@ -1566,6 +1571,18 @@
                         g.view = 'activate'
                         this.alert({message: "ACTIVATION REQUIRED", text: "Enter a valid license key to activate the plugin."})
                     }
+                })
+
+                url = ajaxurl+'?action=lead_finder_get_twilio_numbers'
+                fetch(url).then((response)=>{
+                    return response.json()
+                }).then((data) => {
+                    if(data.error){
+                        console.error(data.error)
+                        this.alert({ type: "error", message: data.error })
+                        return
+                    }
+                    g.twilio = data
                 })
             },
             loadFinder: function(item) {
@@ -1719,7 +1736,7 @@
                         icon = 'fa-check-circle'
                         break;
                     case 'error':
-                        icon = 'fa-exclamation-circle'
+                         icon = 'fa-exclamation-circle'
                         break;
                     default:
                         type = 'info'
@@ -1945,6 +1962,18 @@
                 return
             },
             showVoicemailBlastModal: function() {
+
+                if(this.twilio.account_sid == '' || this.twilio.auth_token == ''){
+                    this.alert({message:"Twilio Account Setup Required", type: "error", text: "Please go to Settings &gt; Twilio to add your twilio credentials in order to enable voicemail broadcasting."})
+                    return
+                } else if(this.twilio.phone_numbers.length < 0) {
+                    this.alert({message:"Twilio Phone Number Required", type: "error", text: "A twilio phone number is required to send voicemails. You can purchase a phone number in your twilio.com account."})
+                    return
+                }
+
+                if(this.finder.voicemail.audio_file_url != '' && this.finder.voicemail.audio_file_url != undefined)
+                    this.show.audio_file_url = 'select'
+
                 this.style.modalVoicemailBlast.display = 'block'
                 if(this.finder.voicemail == undefined)
                     this.finder.voicemail = {}
@@ -1990,13 +2019,30 @@
                 this.style.modalVoicemailBlast.display = 'none'
             },
             sendVoicemailBlast: function() {
+                //check form
+                if(this.finder.voicemail.from_phone_number == '' || this.finder.voicemail.from_phone_number == undefined) {
+                    this.alert({ message: 'A "From Twilio Phone Number" is required', type: "error", time: 3 })
+                    return
+                }
+
+                if(this.finder.voicemail.audio_file_url == '' || this.finder.voicemail.audio_file_url == undefined) {
+                    this.alert({ message: 'An audio file is required', type: "error", time: 3 })
+                    return
+                }
+                
+                if(this.finder.voicemail.send_to == '' || this.finder.voicemail.send_to == undefined) {
+                    this.alert({ message: 'Please select the recipients.', type: "error", time: 3 })
+                    return
+                }
+
+
                 var url = ajaxurl+'?action=lead_finder_update_vm_broadcast';
                 let g = this
-                this.finder.voicemail.active = true
-                this.finder.voicemail.list_id = this.finder.ID
+                g.finder.voicemail.active = true
+                g.finder.voicemail.list_id = g.finder.ID
                 fetch(url, {
                     method: 'post',
-                    body: JSON.stringify({ ...this.finder })
+                    body: JSON.stringify({ ...g.finder })
                 }).then((response)=>{
                     return response.json()
                 }).then((data)=>{
@@ -2006,6 +2052,7 @@
                         } else {
                             g.alert({ message:'Broadcast Complete', text: 'Matching Records: '+data.count, type: 'success' })
                         }
+                        g.finder.voicemail.active = false
                     }
                 })
             },

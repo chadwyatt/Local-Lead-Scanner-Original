@@ -3,7 +3,7 @@
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
 Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
-Version: 1.0.2
+Version: 1.0.3
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
 */
@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.2' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.3' );
 
 
 spl_autoload_register(function ($class) {
@@ -43,10 +43,9 @@ spl_autoload_register(function ($class) {
     // separators with directory separators in the relative class name, append
     // with .php
     $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
-
-    // if the file exists, require it
-    if (file_exists($file)) {
-        require $file;
+	$file = str_replace('//', '/', $file);
+	if (file_exists($file)) {
+		require $file;
     }
 });
 	
@@ -67,16 +66,6 @@ class gpapiscraper {
 
 	function frontend(){
 		add_shortcode('local-lead-scanner', function($attr){
-			// wp_register_script( 'vuejs', 'https://cdn.jsdelivr.net/npm/vue@2.6.12' );
-			// wp_enqueue_script( 'vuejs' );
-			// wp_enqueue_script( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.js', array( 'wp-api' ) );
-			// wp_enqueue_script( 'fontawesome', 'https://kit.fontawesome.com/a9997e81a5.js' );
-			// wp_enqueue_style( 'leadfinder', plugin_dir_url( __FILE__ ) . '/includes/leadfinder.css' );
-			// wp_enqueue_script( 'filepond', 'https://unpkg.com/filepond/dist/filepond.min.js' );
-			// wp_enqueue_script( 'filepond-jquery', 'https://unpkg.com/jquery-filepond/filepond.jquery.js' );
-			// wp_enqueue_script( 'filepond-filetype', 'https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js' );
-			// wp_enqueue_style( 'filepond', 'https://unpkg.com/filepond/dist/filepond.css' );
-			// wp_enqueue_script( 'momentjs', 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js' );
 			$this->enqueue_scripts();
 			return '
 				<link rel="preconnect" href="https://fonts.gstatic.com">
@@ -102,6 +91,7 @@ class LocalLeadScannerPlugin {
 			add_action('wp_ajax_lead_finder_get_locations', array($this, 'get_locations'));
 			add_action('wp_ajax_lead_finder_save_locations', array($this, 'save_locations'));
 			add_action('wp_ajax_lead_finder_get_settings', array($this, 'get_settings'));
+			add_action('wp_ajax_lead_finder_get_twilio_numbers', array($this, 'get_twilio_numbers'));
 			add_action('wp_ajax_nopriv_lead_finder_get_settings', array($this, 'login_required'));
 			add_action('wp_ajax_lead_finder_save_api_key', array($this, 'save_api_key'));
 			add_action('wp_ajax_lead_finder_download', array($this, 'download'));
@@ -204,10 +194,12 @@ class LocalLeadScannerPlugin {
 
 		foreach($posts as $post) {
 			$voicemail = get_post_meta($post->ID, 'vm_broadcast_settings', true);
-			// $obj = new stdClass();
-			// $obj = (object)[];
-			$post->voicemail = $voicemail != '' ? $voicemail : [];
-			// $post->voicemail = $voicemail;
+			$obj = (object)[];
+			$obj->active = false;
+			if(isset($voicemail['active']))
+				$post->voicemail = $voicemail;
+			else
+				$post->voicemail = $obj;
 		}
 
 		return $posts;
@@ -221,7 +213,6 @@ class LocalLeadScannerPlugin {
 			'post_status' => 'publish'
 		));
 		
-		// $this->get_finders();
 		$post = get_post($ID);
 		$post->voicemail = (object)[];
 
@@ -330,7 +321,6 @@ class LocalLeadScannerPlugin {
 			$google_places_api_key = false;
 
 		$signalwire = get_user_meta($user_id, 'signalwire', true);
-		$twilio = get_user_meta($user_id, 'lls_twilio', true);
 		$audio_files_meta = get_user_meta($user_id, 'lf_audio_files', true);
 		$audio_files = [];
 
@@ -341,16 +331,6 @@ class LocalLeadScannerPlugin {
 			}
 		}
 
-		// get twilio incoming phone numbers
-		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
-		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
-		$twilio['phone_numbers'] = [];
-		foreach ($incomingPhoneNumbers as $record) {
-			// error_log(print_r($record, true));
-			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
-		}
-
-		
 		header('Content-Type: application/json');
 		echo(json_encode(array(
 			'google_places_api_key' => $google_places_api_key,
@@ -358,9 +338,23 @@ class LocalLeadScannerPlugin {
 			'roles' => $roles,
 			'realapikey' => $real_gpapikey,
 			'signalwire' => $signalwire,
-			'twilio' => $twilio,
+			// 'twilio' => $twilio,
 			'audio_files' => $audio_files,
 		)));
+		die();
+	}
+
+	function get_twilio_numbers() {
+		// get twilio incoming phone numbers
+		$twilio = get_user_meta(get_current_user_id(), 'lls_twilio', true);
+		$client = new Client($twilio['account_sid'], $twilio['auth_token']);
+		$incomingPhoneNumbers = $client->incomingPhoneNumbers->read([], 1000);
+		$twilio['phone_numbers'] = [];
+		foreach ($incomingPhoneNumbers as $record) {
+			array_push($twilio['phone_numbers'], array("sid" => $record->sid, "phoneNumber" => $record->phoneNumber, "friendlyName" => $record->friendlyName));
+		}
+		header('Content-Type: application/json');
+		echo(json_encode($twilio));
 		die();
 	}
 
@@ -373,9 +367,6 @@ class LocalLeadScannerPlugin {
 	}
 
 	function download() {
-		// $txt = str_replace("&amp;", "&", $txt);
-		// $txt = stripslashes($txt);
-
 		$lead_finder = get_post($_REQUEST['lead_finder_ID']);
 
 		//get child records of the lead finder record
@@ -386,7 +377,6 @@ class LocalLeadScannerPlugin {
 			'posts_per_page' => -1
 		));
 
-		// print_r($posts);
 		$txt = '';
 		//loop through easy business record and pull the meta data
 		foreach($posts as $post){
@@ -396,7 +386,6 @@ class LocalLeadScannerPlugin {
 				$address[ $a['types'][0] ] = $a['long_name'];
 			}
 
-			// print_r($address);
 			$fields = [];
 
 			$fields[] = $m['name'];
@@ -446,8 +435,6 @@ class LocalLeadScannerPlugin {
 			'date_expiry' => ’’,
 		);
 
-		print_r($api_params);
-		echo "\n=====\n";
 		// Send query to the license manager server
 		$response = wp_remote_get(add_query_arg($api_params, 'https://localleadscanner.com'), array('timeout' => 20, 'sslverify' => false));
 		
@@ -493,14 +480,9 @@ class LocalLeadScannerPlugin {
         $query = esc_url_raw(add_query_arg($api_params, 'https://localleadscanner.com'));
         $response = wp_remote_get($query, array('timeout' => 20, 'sslverify' => false));
 		
-		// print_r($response['body']);
 		// License data.
 		$license_data = json_decode(wp_remote_retrieve_body($response));
-        // Check for error in the response
-        // if (is_wp_error($response)){
-        //     echo "Unexpected Error! The query returned with an error.";
-        // }
-
+        
         if($license_data->result == 'success'){//Success was returned for the license activation
             //Save the license key in the options table
             update_option('lead_finder_license_key', $license_key);
@@ -577,6 +559,7 @@ class LocalLeadScannerPlugin {
 		$user_id = get_current_user_id();
 		$data = json_decode(file_get_contents('php://input'), true);
 		update_user_meta($user_id, 'lls_twilio', $data['twilio']);
+		$this->get_twilio_numbers();
 	}
 
 	function cancel_queries() {
@@ -718,9 +701,12 @@ class LocalLeadScannerPlugin {
 		//if turning on, call the run_vm_broadcast
 		if($data['voicemail']['active'] == '1'){
 			$obj = $this->run_vm_broadcast($ID);
-			header('Content-Type: application/json');
-			echo(json_encode($obj));
+		} else {
+			$obj = (object)[];
+			$obj->message = "Not active";
 		}
+		header('Content-Type: application/json');
+		echo(json_encode($obj));
 		die();
 	}
 
@@ -728,10 +714,12 @@ class LocalLeadScannerPlugin {
 		//get all finder records and run broadcast for each active one
 		$posts = $this->get_finder_posts();
 		foreach($posts as $post) {
-			// print_r($post);
-			echo "\nVoicemail: ".$post->voicemail['active'];
+			// checking for type because we're inconsistent on array vs object in the results
+			if(gettype($post->voicemail) == 'object' && $post->voicemail->active == '1') 
+				$this->run_vm_broadcast($post->ID);
+			elseif (gettype($post->voicemail) == 'array' && $post->voicemail['active'] == '1') 
+				$this->run_vm_broadcast($post->ID);
 		}
-		die("done!");
 	}
 
 	function run_vm_broadcast($ID = null) {
@@ -739,9 +727,7 @@ class LocalLeadScannerPlugin {
 			return;
 		
 		$settings = get_post_meta($ID, 'vm_broadcast_settings', true);
-		// $settings['list_id'] = $ID;
-		// print_r($settings);
-
+		
 		// still running?
 		if($settings['active'] != '1')
 			return;
@@ -758,7 +744,10 @@ class LocalLeadScannerPlugin {
 
 		$counter = 0;
 
-		foreach($posts as $post) {
+		foreach($posts as $temp_post) {
+
+			//pull the same post again to make sure we don't send a duplicate from another parallel ajax request
+			$post = get_post($temp_post->ID);
 
 			// look for the next eligible record
 			$post->meta = get_post_meta($post->ID);
@@ -790,31 +779,33 @@ class LocalLeadScannerPlugin {
 				// Send to all who haven't received THIS audio
 				case 1:
 					if($this->not_Received_This_Audio($post, $settings)) {
-						// echo "\nsend it 1 => ".$post->meta['phone_number'][0];
 						$send_vm = true;
 					}
 					break;
 				case 3:
 					if($this->not_Received_Any_Audio_On_This_List($post, $settings)) {
-						// echo "send it 3\n";
 						$send_vm = true;
 					}
 					break;
 				// Send to all who haven't received ANY audio on ANY list
 				case 4:
 					if($this->not_Received_Any_Audio_On_Any_List($post, $settings)) {
-						// echo "send it 4\n";
 						$send_vm = true;
 					}
 					break;
 				// Send to all on this list
 				case 5:
-					// echo "send it 5\n";
 					$send_vm = true;
 					break;
 				default:
-					// echo "do not send\n";
+					
 
+			}
+
+			//send only if last vm for this phone number was sent more than 60 minutes ago, to avoid dups/mistakes, etc
+			$last_vm_sent_timestamp = get_post_meta($phone_history_id, 'last_vm_sent_timestamp', true);
+			if($last_vm_sent_timestamp > (time() - 60*60)){
+				$send_vm = false;
 			}
 
 			if($send_vm) {
@@ -827,11 +818,12 @@ class LocalLeadScannerPlugin {
 				$settings['datetime'] = gmdate("Y-m-d G:i:s");
 				$history_id = add_post_meta($phone_history_id, 'voicemail', $settings); 
 				$settings['history_id'] = $history_id;
+
+				update_post_meta($phone_history_id, 'last_vm_sent_timestamp', time());
 				
+				//TODO: temp disable for testing
 				// $this->send_voicemail($post, $settings);
 
-			} else {
-				// echo "not sending\n";
 			}
 
 			// send up to 30 in this cycle
@@ -843,7 +835,7 @@ class LocalLeadScannerPlugin {
 		//update status if sending less than 30. Means we've reached the end.
 		if($counter < 30) {
 			$settings['active'] = 0;
-			// update_post_meta($ID, 'vm_broadcast_settings', $settings);
+			update_post_meta($ID, 'vm_broadcast_settings', $settings);
 			$status = "complete";
 			$active = 0;
 		} else {
