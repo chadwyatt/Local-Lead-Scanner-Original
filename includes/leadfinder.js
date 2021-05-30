@@ -423,7 +423,7 @@
                                             <input v-model="twilio.account_sid" v-bind:style="[style.input, style.inputLarge]" />
                                             
                                             <label>Auth Token</label>
-                                            <input v-model="twilio.auth_token" v-bind:style="[style.input, style.inputLarge]" />
+                                            <input type="password" v-model="twilio.auth_token" v-bind:style="[style.input, style.inputLarge]" />
 
                                             <button v-on:click="saveTwilioSettings" v-bind:style="[style.btn, style.btnPrimary, style.btnLarge, style.floatRight, style.marginTop20]">Save Settings</button>
                                         </div>
@@ -475,6 +475,7 @@
                             <div style="clear:both;"></div>
 
                             <h2 v-bind:style="style.heading">Voicemail Broadcast</h2>
+                            <p>Voicemails are sent to mobile numbers only. Total mobile numbers on this list: {{countMobile}}</p>
                             
                             <label>From Twilio Phone Number:</label>
                             <select label="Locations" v-model="finder.voicemail.from_phone_number" :items="twilio.phone_numbers" v-bind:style="[style.input, style.inputLarge]">
@@ -527,15 +528,30 @@
                                     Record calls for review
                                 </label>
                             </div>
-                                    
-                            <div style="text-align:center;margin-top:20px;">
+                                  
+                            <div v-if="showVoicemailTest" style="text-align:center;margin-top:20px;">
+                                <div style="text-align:left;">
+                                    <label>Mobile Phone Number</label>
+                                    <input v-bind:style="[style.input, style.inputLarge]" v-model="finder.voicemail.test_number" />
+                                </div>
+                                <button v-bind:style="[style.btn, style.btnLarge]" v-on:click="hideTestVoicemail()">Close Test</button>
+                                <button v-bind:style="[style.btn, style.btnLarge, style.btnSuccess]" v-on:click="sendVoicemailTest()">
+                                    <i v-if="testVoicemailBroadcastRunning" class="fas fa-spinner fa-spin"></i>    
+                                    Go
+                                </button>
+                            </div>
+
+                            <div v-if="!showVoicemailTest" style="text-align:center;margin-top:20px;">
                                 <button v-bind:style="[style.btn, style.btnLarge]" v-on:click="closeVoicemailBlastModal()">Close</button>
+                                <button v-bind:style="[style.btn, style.btnLarge]" v-on:click="revealTestVoicemail()">Test</button>
                                 <button v-if="finder.voicemail != undefined && finder.voicemail.active" v-bind:style="[style.btn, style.btnLarge, style.btnDanger]" v-on:click="stopVoicemailBlast()">
                                     <i class="fas fa-spinner fa-spin"></i> 
                                     Stop Broadcast
                                 </button>
                                 <button v-else v-bind:style="[style.btn, style.btnLarge, style.btnSuccess]" v-on:click="sendVoicemailBlast()">Start Broadcast</button>
                             </div>
+
+
                             <div style="clear:both;"></div>
                         </div>
                     </div>
@@ -688,12 +704,15 @@
         data: {
             // scannerRunning: false,
             interval: null,
+            showVoicemailTest: false,
+            testVoicemailBroadcastRunning: false,
             show: {
                 audio_file_url: 'upload'
             },
             voicemail: {
                 record: false,
-                send_to: 1
+                send_to: 1,
+                test: '0'
             },
             voicemail_running: true,
             audio_files: [],
@@ -876,6 +895,14 @@
                     return (mobile.length/this.original_businesses.length*100).toFixed(0)
                 return 0
             },
+            countMobile: function() {
+                let mobile = this.original_businesses.filter(business => {
+                    return business.business_data.phone_type == 'mobile'
+                })
+                if(mobile.length > 0)
+                    return mobile.length
+                return 0
+            },
             percentWebsites: function() {
                 let websites = this.original_businesses.filter(business => {
                     return business.business_data.website && business.business_data.website.length
@@ -924,6 +951,12 @@
             },
         },
         methods: {
+            revealTestVoicemail: function() {
+                this.showVoicemailTest = true
+            },
+            hideTestVoicemail: function() {
+                this.showVoicemailTest = false
+            },
             createInterval: function() {
                 this.runBroadcasts()
                 if(this.interval === null) {
@@ -1445,6 +1478,9 @@
                 }).then((data)=>{
                     g.twilio = data
                     g.alert({message:'SAVED', type: 'success', time:2, delay:1})
+                }).catch(error => {
+                    console.error(error)
+                    this.alert({ type: "error", message: "Error", text: "Your credentials couldn't be saved. Please double check that they are correct and try again." })
                 })
             },
             editLocation: function(location) {
@@ -2017,6 +2053,43 @@
             closeVoicemailBlastModal: function() {
                 FilePond.destroy(document.querySelector('.audiofile'))
                 this.style.modalVoicemailBlast.display = 'none'
+            },
+            sendVoicemailTest: function() {
+                //check form
+                if(this.finder.voicemail.from_phone_number == '' || this.finder.voicemail.from_phone_number == undefined) {
+                    this.alert({ message: 'A "From Twilio Phone Number" is required', type: "error", time: 3 })
+                    return
+                }
+
+                if(this.finder.voicemail.audio_file_url == '' || this.finder.voicemail.audio_file_url == undefined) {
+                    this.alert({ message: 'An audio file is required', type: "error", time: 3 })
+                    return
+                }
+                
+                if(this.finder.voicemail.test_number == '' || this.finder.voicemail.test_number == undefined) {
+                    this.alert({ message: 'Please enter your mobile phone number', type: "error", time: 3 })
+                    return
+                }
+
+                
+
+                var url = ajaxurl+'?action=lead_finder_test_vm_broadcast';
+                let g = this
+                // g.finder.voicemail.active = true
+                // g.finder.voicemail.list_id = g.finder.ID
+                this.testVoicemailBroadcastRunning = true
+                fetch(url, {
+                    method: 'post',
+                    body: JSON.stringify({ ...g.finder })
+                }).then((response)=>{
+                    return response
+                }).then((data)=>{
+                    g.alert({ message:'Test Initiated', text: 'Allow a couple of minutes for the voicemail to come through on your phone. You can also check your twilio call logs to see the results. Your phone may ring briefly. Results will vary based on voicemail systems.' })
+                    g.testVoicemailBroadcastRunning = false
+                    g.hideTestVoicemail()
+                })
+
+
             },
             sendVoicemailBlast: function() {
                 //check form
