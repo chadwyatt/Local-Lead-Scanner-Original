@@ -3,7 +3,7 @@
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
 Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
-Version: 1.0.6
+Version: 1.0.7
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
 */
@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.6' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.7' );
 
 
 spl_autoload_register(function ($class) {
@@ -325,6 +325,10 @@ class LocalLeadScannerPlugin {
 		$audio_files_meta = get_user_meta($user_id, 'lf_audio_files', true);
 		$audio_files = [];
 
+		$twilio = get_user_meta($user_id, 'lls_twilio', true);
+		if(gettype($twilio) == 'string')
+			$twilio = (object)['account_sid' => '', 'auth_token' => ''];
+
 		//return clean array of files without full file path
 		if(gettype($audio_files_meta) != 'string'){
 			foreach($audio_files_meta as $file){
@@ -339,7 +343,7 @@ class LocalLeadScannerPlugin {
 			'roles' => $roles,
 			'realapikey' => $real_gpapikey,
 			'signalwire' => $signalwire,
-			// 'twilio' => $twilio,
+			'twilio' => $twilio,
 			'audio_files' => $audio_files,
 		)));
 		die();
@@ -360,12 +364,13 @@ class LocalLeadScannerPlugin {
 		$data = wp_remote_retrieve_body($request);
 		$data = json_decode($data, true);
 		
-		$twilio['phone_numbers'] = [];
+		// $twilio['phone_numbers'] = [];
+		$phone_numbers = [];
 		foreach ($data['incoming_phone_numbers'] as $record) {
-			array_push($twilio['phone_numbers'], array("sid" => $record['sid'], "phoneNumber" => $record['phone_number'], "friendlyName" => $record['friendly_name']));
+			array_push($phone_numbers, array("sid" => $record['sid'], "phoneNumber" => $record['phone_number'], "friendlyName" => $record['friendly_name']));
 		}
 		header('Content-Type: application/json');
-		echo(json_encode($twilio));
+		echo(json_encode($phone_numbers));
 		die();
 	}
 
@@ -580,7 +585,7 @@ class LocalLeadScannerPlugin {
 
 	function twilio_update() {
 		$user_id = get_current_user_id();
-		$data = json_decode(file_get_contents('php://input'), true);
+		$data = json_decode(stripslashes($_POST['json']), true);
 		update_user_meta($user_id, 'lls_twilio', $data['twilio']);
 		$this->get_twilio_numbers();
 	}
@@ -712,7 +717,8 @@ class LocalLeadScannerPlugin {
 	function update_vm_broadcast() {
 		//update leadfinder record meta to turn on/off a vm broadcast
 
-		$data = json_decode(file_get_contents('php://input'), true);
+		// $data = json_decode(file_get_contents('php://input'), true);
+		$data = json_decode(stripslashes($_POST['json']), true);
 		$ID = $data['ID'];
 
 		update_post_meta($ID, 'vm_broadcast_active', $data['voicemail']['active']);
