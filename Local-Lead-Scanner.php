@@ -3,7 +3,7 @@
 Plugin Name: Local Lead Scanner
 Plugin URI: https://localleadscanner.com
 Description: Query the google places api for business leads. To install, add the [local-lead-scanner] shortcode to a page or post.
-Version: 1.0.7
+Version: 1.0.8
 Author: Local Lead Scanner
 Author URI: https://localleadscanner.com
 */
@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.7' );
+define( 'LOCAL_LEAD_SCANNER_VERSION', '1.0.8' );
 
 
 spl_autoload_register(function ($class) {
@@ -585,7 +585,8 @@ class LocalLeadScannerPlugin {
 
 	function twilio_update() {
 		$user_id = get_current_user_id();
-		$data = json_decode(stripslashes($_POST['json']), true);
+		// $data = json_decode(stripslashes($_POST['json']), true);
+		$data = json_decode(file_get_contents('php://input'), true);
 		update_user_meta($user_id, 'lls_twilio', $data['twilio']);
 		$this->get_twilio_numbers();
 	}
@@ -717,8 +718,8 @@ class LocalLeadScannerPlugin {
 	function update_vm_broadcast() {
 		//update leadfinder record meta to turn on/off a vm broadcast
 
-		// $data = json_decode(file_get_contents('php://input'), true);
-		$data = json_decode(stripslashes($_POST['json']), true);
+		$data = json_decode(file_get_contents('php://input'), true);
+		// $data = json_decode(stripslashes($_POST['json']), true);
 		$ID = $data['ID'];
 
 		update_post_meta($ID, 'vm_broadcast_active', $data['voicemail']['active']);
