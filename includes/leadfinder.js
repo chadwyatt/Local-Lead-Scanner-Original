@@ -975,7 +975,6 @@
                 }
             },
             runInterval: function() {
-                // console.log("do interval stuff")
                 this.loadFinders(false)
                 this.runBroadcasts()
                 if(this.finder.voicemail.active == '1' || this.finder.voicemail.active == true){
@@ -1490,6 +1489,11 @@
                 var url = ajaxurl+'?action=lead_finder_twilio_update';
                 this.alert({message:'SAVING...'})
                 let g = this
+                
+                // const formData = new FormData();
+                // formData.append('json', JSON.stringify({
+                //     twilio: this.twilio
+                // }))
                 fetch(url, {
                     method: 'post',
                     body: JSON.stringify({
@@ -1498,7 +1502,7 @@
                 }).then((response)=>{
                     return response.json()
                 }).then((data)=>{
-                    g.twilio = data
+                    g.twilio.phone_numbers = data
                     g.alert({message:'SAVED', type: 'success', time:2, delay:1})
                 }).catch(error => {
                     console.error(error)
@@ -1613,7 +1617,8 @@
                     g.license_status = data.license_status
                     g.roles = data.roles
                     g.signalwire = data.signalwire
-                    // g.twilio = data.twilio
+                    g.twilio.account_sid = data.twilio.account_sid
+                    g.twilio.auth_token = data.twilio.auth_token
                     g.audio_files = data.audio_files
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
@@ -1640,7 +1645,7 @@
                         this.alert({ type: "error", message: data.error })
                         return
                     }
-                    g.twilio = data
+                    g.twilio.phone_numbers = data
                 })
             },
             loadFinder: function(item) {
@@ -1712,7 +1717,6 @@
                     }).then((response)=>{
                         return response.json()
                     }).then((data)=>{
-                        console.log("new lead finder", data)
                         // this.flashModal('Saved!')
                         this.alert({message:'SAVED', type: 'success', time:1})
                         // this.alert({type:'success', message:'SAVED', time:3})
@@ -2066,7 +2070,6 @@
                 if(pond != undefined) {
                     pond.addEventListener('FilePond:processfile', e => {
                         let file = JSON.parse(e.detail.file.serverId)
-                        console.log("metadata", JSON.parse(e.detail.file.serverId))
                         this.finder.voicemail.audio_file_url = file.url
                     })
                 }
@@ -2135,6 +2138,10 @@
                 let g = this
                 g.finder.voicemail.active = true
                 g.finder.voicemail.list_id = g.finder.ID
+
+                // const formData = new FormData();
+                // formData.append('json', JSON.stringify({ ...g.finder }))
+                
                 fetch(url, {
                     method: 'post',
                     body: JSON.stringify({ ...g.finder })
