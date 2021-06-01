@@ -264,15 +264,13 @@
                                             </div>
                                             <div v-for="voicemail in business.voicemail_history" :style="[style.recordText]">
                                                 <i class="fas fa-voicemail"></i> 
-                                                <a :href="voicemail.audio_file_url" target="_blank">
-                                                    {{ voicemail.filename.replace(/^[0-9]+-/, "") }}
-                                                </a>
+                                                <a :href="voicemail.audio_file_url" target="_blank">{{ voicemail.filename.replace(/^[0-9]+-/, "") }}</a>
                                                 <span v-if="voicemail.RecordingUrl">
-                                                    <a :href="voicemail.RecordingUrl" target="_blank" title="Recording">
+                                                    <a :href="voicemail.RecordingUrl" target="_blank" title="Recording" style="margin-left:5px;">
                                                         <i class="fas fa-dot-circle"></i> 
                                                     </a>
                                                 </span>
-                                                {{ moment.utc(voicemail.datetime, "YYYY-MM-DD hh:mm:ss").fromNow() }}
+                                                <span style="margin-left:5px;">{{ moment.utc(voicemail.datetime, "YYYY-MM-DD hh:mm:ss").fromNow() }}</span>
                                             </div>
                                         </div>
                                     </div>
