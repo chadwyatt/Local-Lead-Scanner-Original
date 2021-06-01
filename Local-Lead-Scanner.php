@@ -104,6 +104,7 @@ class LocalLeadScannerPlugin {
 			add_action('wp_ajax_lead_finder_twilio_update', array($this, 'twilio_update'));
 			add_action('wp_ajax_lead_finder_cancel', array($this, 'cancel_queries'));
 			add_action('wp_ajax_nopriv_lead_finder_twilio_twiml', array($this, 'twilio_twiml'));
+			add_action('wp_ajax_lead_finder_twilio_twiml', array($this, 'twilio_twiml'));
 			add_action('wp_ajax_nopriv_lead_finder_twilio_status_callback', array($this, 'twilio_status_callback'));
 			add_action('wp_ajax_lead_finder_upload_audio_file', array($this, 'upload_audio_file'));
 			add_action('wp_ajax_lead_finder_update_vm_broadcast', array($this, 'update_vm_broadcast'));
@@ -605,7 +606,7 @@ class LocalLeadScannerPlugin {
 		$audio_file_url = $settings['audio_file_url'];
 
 		$ajax_url = admin_url( 'admin-ajax.php' );
-		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".$audio_file_url;
+		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".urlencode($audio_file_url);
 
 		$twilio_status_callback_url = $ajax_url."?action=lead_finder_twilio_status_callback&ID=".$settings['history_id'];
 
@@ -625,7 +626,7 @@ class LocalLeadScannerPlugin {
 				"Timeout" => $timeout,
 				"Record" => $settings['record'] == true ? true : false,
 				"StatusCallback" => $twilio_status_callback_url,
-				"StatusCallbackEvent" => "answered,completed",
+				// "StatusCallbackEvent" => "answered,completed",
 				"MachineDetection" => "DetectMessageEnd"
 			)
 		);
@@ -768,7 +769,7 @@ class LocalLeadScannerPlugin {
 				"Timeout" => $timeout,
 				"Record" => $settings['record'] == true ? true : false,
 				"StatusCallback" => $twilio_status_callback_url,
-				"StatusCallbackEvent" => "answered,completed",
+				// "StatusCallbackEvent" => "answered,completed",
 				"MachineDetection" => "DetectMessageEnd"
 			)
 		);
