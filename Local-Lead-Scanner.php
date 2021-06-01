@@ -604,9 +604,11 @@ class LocalLeadScannerPlugin {
 		$phone_number = $post->meta['phone_number'][0];
 		$from_number = $settings['from_phone_number'];
 		$audio_file_url = $settings['audio_file_url'];
+		$audio_file_url = str_replace(array('https://','http://'), '', $audio_file_url);
+
 
 		$ajax_url = admin_url( 'admin-ajax.php' );
-		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".urlencode($audio_file_url);
+		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".$audio_file_url;
 
 		$twilio_status_callback_url = $ajax_url."?action=lead_finder_twilio_status_callback&ID=".$settings['history_id'];
 
@@ -647,8 +649,10 @@ class LocalLeadScannerPlugin {
     }
 
     public function twilio_twiml(){
-		// $response = new VoiceResponse();
-        $AnsweredBy = $_REQUEST["AnsweredBy"];
+		$AnsweredBy = $_REQUEST["AnsweredBy"];
+
+		$protocol = empty($_SERVER['HTTPS']) ? 'http://' : 'https://';
+		$audioFileUrl = $protocol.$_REQUEST['audioFileUrl'];
 		
 		header("Content-type: text/xml");
 
@@ -656,7 +660,7 @@ class LocalLeadScannerPlugin {
         if($AnsweredBy !== null && $AnsweredBy !== 'human'){	
             echo '<?xml version="1.0" encoding="UTF-8"?>
 			<Response>
-				<Play>'.$_REQUEST['audioFileUrl'].'</Play>
+				<Play>'.$audioFileUrl.'</Play>
 			</Response>';
 		}
 
@@ -747,6 +751,7 @@ class LocalLeadScannerPlugin {
 		$phone_number = $data['voicemail']['test_number'];
 		$from_number = $data['voicemail']['from_phone_number'];
 		$audio_file_url = $data['voicemail']['audio_file_url'];
+		$audio_file_url = str_replace(array('https://','http://'), '', $audio_file_url);
 
 		$ajax_url = admin_url( 'admin-ajax.php' );
 		$twiml_url = $ajax_url."?action=lead_finder_twilio_twiml&audioFileUrl=".$audio_file_url;
