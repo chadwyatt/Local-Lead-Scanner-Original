@@ -1618,6 +1618,7 @@
                     g.twilio.account_sid = data.twilio.account_sid
                     g.twilio.auth_token = data.twilio.auth_token
                     g.audio_files = data.audio_files
+                    g.update_google_places_api_key = data.realapikey
                     if(this.license_status == 'active'){
                         g.google_places_api_key = data.google_places_api_key
                         if(data.google_places_api_key != true){
@@ -1771,6 +1772,7 @@
                     // this.locations = data
                     this.showApiKeyField = false
                     this.getSettings()
+                    this.alert({message:'Google API Key Saved', type: 'success', time: 2})
                 })
                 return
             },
